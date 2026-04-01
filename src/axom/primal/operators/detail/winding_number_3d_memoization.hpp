@@ -369,7 +369,6 @@ public:
     axom::for_all<axom::OMP_EXEC>(
       patches.size(),
       AXOM_HOST_LAMBDA(axom::IndexType i) { nurbs_caches_view[0][i] = NURBSCache(patches[i]); });
-    SLIC_INFO("Finished the first construction");
     // Copy the constructed cache to the other threads' copies (less work than construction)
     axom::for_all<axom::OMP_EXEC>(
       1,
