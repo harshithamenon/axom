@@ -145,47 +145,6 @@ struct PlaneProjector23
   }
 };
 
-// Utility function to slice a tetrahedron along a plane
-primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
-                                 const primal::Plane<double, 3>& plane)
-{
-  primal::Polygon<double, 3> intersectionPolygon;
-
-  // find intersection vertices
-  for(int i = 0; i < 4; ++i)
-  {
-    for(int j = i + 1; j < 4; ++j)
-    {
-      primal::Segment<double, 3> edge(tet[i], tet[j]);
-      double t {};
-      if(primal::intersect(plane, edge, t))
-      {
-        intersectionPolygon.addVertex(edge.at(t));
-      }
-    }
-  }
-  SLIC_ASSERT(intersectionPolygon.numVertices() <= 4);
-
-  // fix the polygon if it bowties
-  if(intersectionPolygon.numVertices() == 4)
-  {
-    // note: using BezierCurve since Axom doesn't currently have intersect(segment, segment)
-    primal::BezierCurve<double, 2> seg1(1);
-    seg1[0] = Point2D(intersectionPolygon[0][0], intersectionPolygon[0][1]);
-    seg1[1] = Point2D(intersectionPolygon[1][0], intersectionPolygon[1][1]);
-    primal::BezierCurve<double, 2> seg2(1);
-    seg2[0] = Point2D(intersectionPolygon[2][0], intersectionPolygon[2][1]);
-    seg2[1] = Point2D(intersectionPolygon[3][0], intersectionPolygon[3][1]);
-    axom::Array<double> sp, tp;
-
-    if(!primal::intersect(seg1, seg2, sp, tp))
-    {
-      axom::utilities::swap(intersectionPolygon[2], intersectionPolygon[3]);
-    }
-  }
-  return intersectionPolygon;
-}
-
 }  // namespace
 
 /// Test fixture for SamplingShaper tests on MFEM meshes
@@ -432,7 +391,6 @@ protected:
 class SamplingShaperTest2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -559,7 +517,6 @@ public:
 class SampleTester2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -675,9 +632,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, basic_circle_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -725,9 +679,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -833,8 +784,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_via_replacement_with_background)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -943,8 +892,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1024,8 +971,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_with_multiple_preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1226,9 +1171,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_stl_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1323,8 +1265,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_mfem_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   // Shape file
@@ -1726,9 +1666,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_boundary_identity_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1780,9 +1717,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_doubling_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1832,9 +1766,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, circle_2D_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1894,9 +1825,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, contour_and_stl_3D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1970,9 +1898,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, shape_proe_tet_with_2D_projection)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -2032,7 +1957,7 @@ shapes:
     this->initializeShaping(shape_file.getPath());
 
     primal::Plane<double, 3> plane({0, 0, 1}, z);
-    const auto polygon = slice(tet, plane);
+    const auto polygon = primal::slice(tet, plane);
     const double intersectionArea = polygon.area();
     SLIC_INFO(axom::fmt::format("Area of intersection polygon: {}", intersectionArea));
 
