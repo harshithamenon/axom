@@ -3907,7 +3907,16 @@ public:
     return true;
   }
 
-  void nearBisectOnLongestAxis(NURBSPatch& p1, NURBSPatch& p2) const
+  /*!
+   * \brief Split the patch in the longer parametric direction, determined via maximum control-net polyline length.
+   *
+   * Rather than calculating It measures the maximum polyline length of the control net in each parametric direction:
+   * - u-length: max over segments ||P(i+1,j) - P(i,j)||
+   * - v-length: max over segments ||P(i,j+1) - P(i,j)||
+   * 
+   * \note This heuristic considers only control points (and ignores weights for rational patches).
+   */
+  void nearBisectOnLongerAxis(NURBSPatch& p1, NURBSPatch& p2) const
   {
     double split_val_u = (getNumKnots_u() == 2 * (getDegree_u() + 1))
       ? 0.499 * getMinKnot_u() + 0.501 * getMaxKnot_u()
@@ -3917,52 +3926,44 @@ public:
       ? 0.502 * getMinKnot_v() + 0.498 * getMaxKnot_v()
       : getKnots_v()[getNumKnots_v() / 2];
 
-    auto make_split_candidate = [&](bool split_in_u) {
-      NURBSPatch patches[2];
+    const auto& cps = getControlPoints();
+    const auto shape = cps.shape();
+    const int nu = shape[0];
+    const int nv = shape[1];
 
-      // Avoid 2D (u,v) bisection of large, slender models which can lead to 4^k patch growth.
-      // Prefer a 1D split (u or v) that most reduces the max child bbox.
-      struct Result
+    double u_max_poly_len = 0.0;
+    for(int j = 0; j < nv; ++j)
+    {
+      double len = 0.0;
+      for(int i = 0; i + 1 < nu; ++i)
       {
-        NURBSPatch patches[2];
-        double max_child_range_norm {0.0};
-      };
-
-      Result r {};
-
-      // Do an `uncheckedSplit`, which doesn't look at trimming curves
-      if(split_in_u)
-      {
-        uncheckedSplit_u(split_val_u, patches[0], patches[1]);
+        const auto d = cps(i + 1, j) - cps(i, j);
+        len += d.norm();
       }
-      else
+      u_max_poly_len = axom::utilities::max(u_max_poly_len, len);
+    }
+
+    double v_max_poly_len = 0.0;
+    for(int i = 0; i < nu; ++i)
+    {
+      double len = 0.0;
+      for(int j = 0; j + 1 < nv; ++j)
       {
-        uncheckedSplit_v(split_val_v, patches[0], patches[1]);
+        const auto d = cps(i, j + 1) - cps(i, j);
+        len += d.norm();
       }
+      v_max_poly_len = axom::utilities::max(v_max_poly_len, len);
+    }
 
-      r.patches[0] = std::move(patches[0]);
-      r.patches[1] = std::move(patches[1]);
-
-      // Bounding boxes here are only computed without trimming curves
-      r.max_child_range_norm = axom::utilities::max(r.patches[0].boundingBox().range().norm(),
-                                                    r.patches[1].boundingBox().range().norm());
-
-      return r;
-    };
-
-    const auto u_split = make_split_candidate(/*split_in_u*/ true);
-    const auto v_split = make_split_candidate(/*split_in_u*/ false);
-
-    const bool was_u_better = (u_split.max_child_range_norm <= v_split.max_child_range_norm);
-    auto* chosen = was_u_better ? &u_split : &v_split;
-
-    // Once we pick the best direction, split the trimming curves
-    p1 = std::move(chosen->patches[0]);
-    p2 = std::move(chosen->patches[1]);
-    splitTrimmingCurves(was_u_better ? split_val_u : split_val_v,
-                        was_u_better,
-                        p1.getTrimmingCurves(),
-                        p2.getTrimmingCurves());
+    const bool split_in_u = (u_max_poly_len >= v_max_poly_len);
+    if(split_in_u)
+    {
+      split_u(split_val_u, p1, p2);
+    }
+    else
+    {
+      split_v(split_val_v, p1, p2);
+    }
   }
 
   /*!

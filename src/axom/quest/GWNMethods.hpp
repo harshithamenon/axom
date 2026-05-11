@@ -165,7 +165,8 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("subdivision");
-        m_subdivided_curves = subdivide_curves(m_input_curves_view, 2.0);
+        constexpr double subdivision_bbox_threshold = 0.1;
+        m_subdivided_curves = subdivide_curves(m_input_curves_view, subdivision_bbox_threshold);
         m_processed_curves_view = m_subdivided_curves.view();
       }
       stage_timer.stop();
@@ -601,7 +602,8 @@ public:
     }
 
     // To use if normals are precomputed as moments, then used in caches
-    axom::Array<primal::Vector<double, 3>> precomputed_normals;
+    axom::Array<primal::Vector<double, 3>> precomputed_normals {};
+    axom::Array<double> precomputed_surface_areas {};
 
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
@@ -614,7 +616,8 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("subdivision");
-        m_subdivided_patches = subdivide_patches(m_input_patches_view, 0.1);
+        constexpr double subdivision_bbox_threshold = 0.1;
+        m_subdivided_patches = subdivide_patches(m_input_patches_view, subdivision_bbox_threshold);
         m_processed_patches_view = m_subdivided_patches.view();
       }
       stage_timer.stop();
@@ -647,7 +650,10 @@ public:
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
         precomputed_normals.resize(m_processed_patches_view.size());
+        precomputed_surface_areas.resize(m_processed_patches_view.size());
+
         auto normals_view = precomputed_normals.view();
+        auto surface_areas_view = precomputed_surface_areas.view();
 
         auto compute_moments = [=](std::int32_t currentNode,
                                    const std::int32_t* leafNodes) -> GWNMoments {
@@ -655,6 +661,7 @@ public:
           const auto leaf_moments = GWNMoments(m_processed_patches_view[idx]);
 
           normals_view[idx] = leaf_moments.getNormal();
+          surface_areas_view[idx] = leaf_moments.getSurfaceArea();
           return leaf_moments;
         };
 
@@ -667,8 +674,19 @@ public:
     }
     else
     {
-      // Without fast-approximation, processing is unnecessary
-      m_processed_patches_view = m_input_patches_view;
+      // Without fast-approximation, processing is unnecessary, but we still clean the
+      //  the trimmed representation for more precise moment calculation
+      for(auto& surf : m_input_patches_view)
+      {
+        auto cleaned = surf.cleanedTrimmedRepresentation();
+        if(cleaned.getNumTrimmingCurves() == 0)
+        {
+          continue;
+        }
+
+        m_subdivided_patches.push_back(std::move(cleaned));
+      }
+      m_processed_patches_view = m_subdivided_patches.view();
     }
 
     if(use_memoization)
@@ -679,7 +697,9 @@ public:
         AXOM_ANNOTATE_SCOPE("cache_initialization");
 
         // If internal moments are already allocated, then normals are already precomputed
-        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view, precomputed_normals.view());
+        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view,
+                                              precomputed_normals.view(),
+                                              precomputed_surface_areas.view());
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",

@@ -315,8 +315,15 @@ public:
   /// Return the normal if computed from 3D data
   axom::primal::Vector<T, 3> getNormal() const
   {
-    static_assert(NDIMS == 3, "GWN Moments for triangles are defined only for 3D");
+    static_assert(NDIMS == 3, "Normal vectors are defined only for 3D");
     return axom::primal::Vector<T, 3> {ec[0], ec[1], ec[2]};
+  }
+
+  /// Return the surface area if computed from 3D data
+  double getSurfaceArea() const
+  {
+    static_assert(NDIMS == 3, "Surface areas are defined only for 3D");
+    return a;
   }
 
 private:
@@ -566,23 +573,18 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
   // Then compute a bounding box of all the surfaces
   for(auto& surf : input_patches_view)
   {
-    // This is where we would do Bezier extraction, if the curve-curve intersection
-    //  routine were more robust :(
-    //for(auto& bez : surf.extractTrimmedBezier())
-    {
-      auto the_patch = surf;
+    auto the_patch = surf;
 
-      if(the_patch.getNumTrimmingCurves() == 0) continue;
+    if(the_patch.getNumTrimmingCurves() == 0) continue;
 
-      the_patch.normalize();
-      the_patch.clipToCurves();
+    the_patch.normalize();
+    the_patch.clipToCurves();
 
-      // Re-check if the patch is empty after clipping to curve
-      if(the_patch.getNumTrimmingCurves() == 0) continue;
+    // Re-check if the patch is empty after clipping to curve
+    if(the_patch.getNumTrimmingCurves() == 0) continue;
 
-      candidates.push_back(the_patch);
-      total_bbox.addBox(the_patch.boundingBox());
-    }
+    candidates.push_back(the_patch);
+    total_bbox.addBox(the_patch.boundingBox());
   }
 
   // Iterate over all the surfaces until no patch has a bounding box
@@ -590,7 +592,7 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
   for(int i = 0; i < npasses; ++i)
   {
     axom::Array<NURBSType> subdivisions;
-    subdivisions.reserve(candidates.size() * 3 / 2);
+    subdivisions.reserve(candidates.size());
 
     BoxType new_bbox;
 
@@ -607,7 +609,7 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
       }
 
       NURBSType subpatches[2];
-      candidate.nearBisectOnLongestAxis(subpatches[0], subpatches[1]);
+      candidate.nearBisectOnLongerAxis(subpatches[0], subpatches[1]);
       for(int si = 0; si < 2; si++)
       {
         if(subpatches[si].getNumTrimmingCurves() == 0) continue;
@@ -623,6 +625,17 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
 
     candidates.swap(subdivisions);
     total_bbox = new_bbox;
+
+    // Break if over 100,000 surfaces
+    if(candidates.size() > 1e5)
+    {
+      std::cout << axom::fmt::format("Excessive subdivision recorded after {} passes! ({} -> {})",
+                                     i,
+                                     input_patches_view.size(),
+                                     candidates.size())
+                << std::endl;
+      break;
+    }
   }
 
   return candidates;
