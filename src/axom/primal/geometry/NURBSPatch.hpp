@@ -3522,23 +3522,114 @@ public:
    * 
    * \return The calculated mean surface normal
    */
-  VectorType calculateTrimmedPatchNormal(int npts = 20) const
+  VectorType calculateTrimmedPatchNormal(int npts = 20, bool useBezierExtraction = true) const
   {
     SLIC_ASSERT(NDIMS == 3);
 
     VectorType ret_vec;
 
-    // Split the patch along the unique knot values to improve convergence
-    for(const auto& nPatch : extractTrimmedBezier())
+    if(useBezierExtraction)
+    {
+      // Split the patch along the unique knot values to improve convergence
+      for(const auto& nPatch : extractTrimmedBezier())
+      {
+        // Integrate the surface normal over the patches
+        ret_vec += evaluate_area_integral(
+          nPatch.getTrimmingCurves(),
+          [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); },
+          npts);
+      }
+    }
+    else
     {
       // Integrate the surface normal over the patches
       ret_vec += evaluate_area_integral(
-        nPatch.getTrimmingCurves(),
-        [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); },
+        getTrimmingCurves(),
+        [this](Point2D x) -> Vector<T, 3> { return this->normal(x[0], x[1]); },
         npts);
     }
 
     return ret_vec;
+  }
+
+  /*!
+   * \brief Calculate the unsigned surface area and integrated normal for the trimmed patch
+   *
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   * \param [in] useBezierExtraction Set whether to do Bezier extraction on input for 
+   *               exponential convergence of general NURBS input
+   *
+   * Decomposes the surface into trimmed Bezier components and evaluates the area
+   *   and integrated normal numerically using trimming curves.
+   * Avoids the redundant geometry processing of computing each value separately
+   */
+  std::pair<VectorType, double> calculateTrimmedPatchNormalArea(int npts = 20,
+                                                                bool useBezierExtraction = true) const
+  {
+    SLIC_ASSERT(NDIMS == 3);
+
+    double area = 0.0;
+    VectorType normal {};
+
+    auto accumulate_patch = [&](const auto& nPatch) {
+      const auto area_and_normal = evaluate_area_integral(
+        nPatch.getTrimmingCurves(),
+        [&nPatch](Point2D x) -> Vector<T, 4> {
+          primal::Point<T, 3> eval;
+          primal::Vector<T, 3> Du, Dv;
+          nPatch.evaluateFirstDerivatives(x[0], x[1], eval, Du, Dv);
+          const auto n = Vector<T, 3>::cross_product(Du, Dv);
+          return Vector<T, 4> {n.norm(), n[0], n[1], n[2]};
+        },
+        npts);
+
+      area += area_and_normal[0];
+      normal += VectorType({area_and_normal[1], area_and_normal[2], area_and_normal[3]});
+    };
+
+    if(useBezierExtraction)
+    {
+      for(const auto& nPatch : extractTrimmedBezier())
+      {
+        accumulate_patch(nPatch);
+      }
+    }
+    else
+    {
+      accumulate_patch(*this);
+    }
+
+    return {normal, area};
+  }
+
+  /*!
+   * \brief Return a "clean" trimmed representation suitable for moment and GWN calculation.
+   *
+   * \param [in] normalize_by_span Normalize the patch parameter space
+   * \param [in] ensure_trimmed If the patch isn't trimmed, make trivially trimmed
+   * \param [in] clip_to_curves Clip patch parameter space to AABB of the trimming curves
+   */
+  NURBSPatch cleanedTrimmedRepresentation(bool normalize_by_span = true,
+                                          bool ensure_trimmed = true,
+                                          bool clip_to_curves = true) const
+  {
+    NURBSPatch patch = *this;
+    if(normalize_by_span)
+    {
+      patch.normalizeBySpan();
+    }
+
+    if(ensure_trimmed && !patch.isTrimmed())
+    {
+      patch.makeTriviallyTrimmed();
+    }
+
+    if(clip_to_curves && patch.getNumTrimmingCurves() > 0)
+    {
+      patch.clipToCurves();
+    }
+
+    return patch;
   }
 
   template <int ORDER, int NVALS = 4 + (ORDER >= 0 ? 3 : 0) + (ORDER >= 1 ? 9 : 0) + (ORDER >= 2 ? 27 : 0)>

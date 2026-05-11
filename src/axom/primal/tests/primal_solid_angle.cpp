@@ -615,63 +615,64 @@ TEST(primal_solid_angle, nurbspatch_sphere)
 //------------------------------------------------------------------------------
 TEST(primal_solid_angle, teardrop_regression_test)
 {
-  using Point3D = primal::Point<double, 3>;
+    using Point3D = primal::Point<double, 3>;
 
-  const double edge_tol = 1e-6;
-  const double ls_tol = 1e-10;
-  const double quad_tol = 1e-5;
-  const double disk_size = 0.01;
-  const double EPS = 1e-11;
+    const double edge_tol = 1e-6;
+    const double ls_tol = 1e-10;
+    const double quad_tol = 1e-5;
+    const double disk_size = 0.01;
+    const double EPS = 1e-11;
 
-  // Test the points on a teardrop for which
-  //  the bottom portion is a bicubic sphere,
-  //  the top portion is defined by the solid of revolution of a cubic Bezier curve
-  const auto teardrop_shape = axom::primal::detail::make_teardrop();
+    // Test the points on a teardrop for which
+    //  the bottom portion is a bicubic sphere,
+    //  the top portion is defined by the solid of revolution of a cubic Bezier curve
+    const auto teardrop_shape = axom::primal::detail::make_teardrop();
 
-  auto is_in_teardrop = [](Point3D x) -> bool {
-    const double radius = std::sqrt(x[0] * x[0] + x[1] * x[1]);
+    auto is_in_teardrop = [](Point3D x) -> bool {
+      const double radius = std::sqrt(x[0] * x[0] + x[1] * x[1]);
 
-    if(radius > 1.0)
+      if(radius > 1.0)
+      {
+        return false;
+      }
+      else
+      {
+        // The vertical cross-section of the tip is given by 3sin(1/3 * asin(1-2x)) + x - 0.5
+        double fun = 3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
+        return (x[2] <= fun) &&
+          ((x[2] > -1.0) ||
+           std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0)) <= 1.0);
+      }
+    };
+
+    // Define a grid of points
+    constexpr int npts = 21;
+    double x_pts[npts];
+    double y_pts[npts];
+    double z_pts[npts];
+
+    axom::numerics::linspace(-1.1, 1.1, x_pts, npts);
+    axom::numerics::linspace(-1.1, 1.1, y_pts, npts);
+    axom::numerics::linspace(-2.1, 1.1, z_pts, npts);
+
+    constexpr int tot_npts = npts * npts * npts;
+    axom::Array<Point3D> query_arr(0, tot_npts);
+    axom::Array<bool> true_containment_arr(0, tot_npts);
+
+    for(int n = 0; n < tot_npts; ++n)
     {
-      return false;
+      const Point3D query {x_pts[(n / npts / npts) % npts], y_pts[(n / npts) % npts], z_pts[n % npts]};
+
+      query_arr.emplace_back(query);
+      true_containment_arr.emplace_back(is_in_teardrop(query));
     }
-    else
+
+    const auto gwn_array =
+      axom::primal::winding_number(query_arr, teardrop_shape, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+
+    for(int n = 0; n < tot_npts; ++n)
     {
-      // The vertical cross-section of the tip is given by 3sin(1/3 * asin(1-2x)) + x - 0.5
-      double fun = 3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
-      return (x[2] <= fun) &&
-        ((x[2] > -1.0) || std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0) <= 1.0));
-    }
-  };
-
-  // Define a grid of points
-  constexpr int npts = 21;
-  double x_pts[npts];
-  double y_pts[npts];
-  double z_pts[npts];
-
-  axom::numerics::linspace(-1.1, 1.1, x_pts, npts);
-  axom::numerics::linspace(-1.1, 1.1, y_pts, npts);
-  axom::numerics::linspace(-2.1, 1.1, z_pts, npts);
-
-  constexpr int tot_npts = npts * npts * npts;
-  axom::Array<Point3D> query_arr(0, tot_npts);
-  axom::Array<bool> true_containment_arr(0, tot_npts);
-
-  for(int n = 0; n < tot_npts; ++n)
-  {
-    const Point3D query {x_pts[(n / npts / npts) % npts], y_pts[(n / npts) % npts], z_pts[n % npts]};
-
-    query_arr.emplace_back(query);
-    true_containment_arr.emplace_back(is_in_teardrop(query));
-  }
-
-  const auto gwn_array =
-    axom::primal::winding_number(query_arr, teardrop_shape, edge_tol, ls_tol, quad_tol, disk_size, EPS);
-
-  for(int n = 0; n < tot_npts; ++n)
-  {
-    const bool calc_containment = (std::round(gwn_array[n]) != 0);
+      const bool calc_containment = (std::round(gwn_array[n]) != 0);
     EXPECT_EQ(calc_containment, true_containment_arr[n]);
   }
 }
