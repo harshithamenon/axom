@@ -274,8 +274,8 @@ public:
 
   axom::runtime_policy::Policy policy = RuntimePolicy::seq;
 
-  const std::array<std::string, 2> valid_algorithms {"direct", "fast_approximation"};
-  std::string algorithm {valid_algorithms[1]};  // fast-approximation
+  const std::array<std::string, 2> valid_algorithms {"direct", "fast_approximate"};
+  std::string algorithm {valid_algorithms[1]};  // fast-approximate
 
   bool linearize {false};
   int approximation_order {2};

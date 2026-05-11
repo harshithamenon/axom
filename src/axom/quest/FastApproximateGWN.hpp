@@ -483,6 +483,22 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
   return gwn;
 }
 
+/*!
+ * \brief Subdivides an array of NURBS curves to limit their maximum AABB diagonal
+ *
+ * \param [in] input_curves_view A const view to the const NURBS input curves
+ * \param [in] bbox_threshold The maximum AABB diagonal of each subdivided curve,
+ *               as a percent of an AABB of the entire input shape
+ * \param [in] npasses The maximum number of passes through the input curves before
+ *               an early return
+ * 
+ * Starts with a collection of Bezier-extracted components, then iterates through the 
+ *   curves at most `npasses` times, and subdivides any which have an AABB diagonal 
+ *   greater than the threshold. The AABB of the entire shape is based on the union 
+ *   of AABB for the subdivisions, which is tighter than that of the original
+ * 
+ * \return The array of subdivided NURBS curves.
+ */
 template <typename T>
 axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
   const axom::ArrayView<const primal::NURBSCurve<T, 2>>& input_curves_view,
@@ -554,6 +570,23 @@ axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
   return candidates_nurbs;
 }
 
+/*!
+ * \brief Subdivides an array of trimmed NURBS surfaces to limit their maximum AABB diagonal
+ *
+ * \param [in] input_patches_view A const view to the const NURBS input surfaces
+ * \param [in] bbox_threshold The maximum AABB diagonal of each subdivided surface,
+ *               as a percent of an AABB of the entire input shape
+ * \param [in] npasses The maximum number of passes through the input surfaces before
+ *               an early return
+ * 
+ * Iterates through the curves at most `npasses` times, and subdivides any which have
+ *   an AABB diagonal greater than the threshold. The AABB of the entire shape is based
+ *   on the union of AABB for the subdivisions, which is tighter than that of the original
+ * Subdivision is performed on the single axis which is determined to be "longer" in physical
+ *   space, as determined by NURBSPatch::nearBisectOnLongerAxis
+ * 
+ * \return The array of subdivided NURBS surfaces.
+ */
 template <typename T>
 axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
   const axom::ArrayView<const primal::NURBSPatch<T, 3>>& input_patches_view,
@@ -564,7 +597,7 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
   using NURBSType = primal::NURBSPatch<T, 3>;
 
   axom::Array<NURBSType> candidates;
-  candidates.reserve(input_patches_view.size() * 3 / 2);
+  candidates.reserve(input_patches_view.size());
   BoxType total_bbox;
 
   // Create initial array of processed patches,

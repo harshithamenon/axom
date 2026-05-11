@@ -3160,19 +3160,25 @@ public:
     }
   }
 
-  void clipToCurves()
+  /*!
+   * \brief Clip the edges of a NURBS surface to the AABB of the trimming curves
+   *
+   * \param [in] padding The amount to be left on each side of the AABB after clipping
+   * 
+   * \sa NURBSPatch::clip()
+   */
+  void clipToCurves(double padding = 1e-5)
   {
     // Take a union of all trimming curve parameter
     ParameterBoundingBoxType curve_bbox;
 
     for(auto& curv : m_trimmingCurves) curve_bbox.addBox(curv.boundingBox());
 
-    uncheckedClip(curve_bbox.getMin()[0] - 1e-5,
-                  curve_bbox.getMax()[0] + 1e-5,
-                  curve_bbox.getMin()[1] - 1e-5,
-                  curve_bbox.getMax()[1] + 1e-5);
+    uncheckedClip(curve_bbox.getMin()[0] - padding,
+                  curve_bbox.getMax()[0] + padding,
+                  curve_bbox.getMin()[1] - padding,
+                  curve_bbox.getMax()[1] + padding);
   }
-
   ///@}
 
   ///@{
@@ -3632,8 +3638,19 @@ public:
     return patch;
   }
 
+  /*!
+   * \brief Calculate the surface moments for the trimmed patch for GWN evaluation
+   *
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   * \param [in] useBezierExtraction Set whether to do Bezier extraction on input for 
+   *               exponential convergence of general NURBS input
+   *
+   * Decomposes the surface into trimmed Bezier components and evaluates up to second
+   *   order moments without recomputing quadrature nodes, avoiding the redundant processing
+   *   of evaluating each separately.
+   */
   template <int ORDER, int NVALS = 4 + (ORDER >= 0 ? 3 : 0) + (ORDER >= 1 ? 9 : 0) + (ORDER >= 2 ? 27 : 0)>
-  primal::Vector<T, NVALS> calculateSurfaceMoments() const
+  primal::Vector<T, NVALS> calculateSurfaceMoments(int npts = 20, bool useBezierExtraction = false) const
   {
     // Need to integrate over 4 (for the coordinates and weight of the centroid)
     //                      + 3 (for the zeroth order moments)
@@ -3641,81 +3658,91 @@ public:
     //                      + 27 (for the second order moments)
     Vector<T, NVALS> ret(0.0);
 
-    // Number of quadrature points
-    constexpr int npts = 20;
+    auto big_ol_integrand = [](const auto& patch, Point2D x) -> Vector<T, NVALS> {
+      Vector<T, NVALS> M(0.0);
 
-    // For now, doing this increases the likelihood of bad numerics,
-    //  and is largely redundant after doing the bigger subdivision routine
+      primal::Point<T, 3> eval;
+      primal::Vector<T, 3> Du, Dv;
+      patch.evaluateFirstDerivatives(x[0], x[1], eval, Du, Dv);
+      const auto the_norm = Vector<T, 3>::cross_product(Du, Dv);
 
-    //for(const auto& patch : extractTrimmedBezier())
-    {
-      auto& patch = *this;
+      M[0] = the_norm.norm();
+      M[1] = eval[0] * the_norm.norm();
+      M[2] = eval[1] * the_norm.norm();
+      M[3] = eval[2] * the_norm.norm();
 
-      auto big_ol_integrand = [&patch](Point2D x) -> Vector<T, NVALS> {
-        Vector<T, NVALS> M(0.0);
+      M[4] = the_norm[0];
+      M[5] = the_norm[1];
+      M[6] = the_norm[2];
 
-        primal::Point<T, 3> eval;
-        primal::Vector<T, 3> Du, Dv;
-        patch.evaluateFirstDerivatives(x[0], x[1], eval, Du, Dv);
-        const auto the_norm = Vector<T, 3>::cross_product(Du, Dv);
+      if constexpr(ORDER >= 1)
+      {
+        M[7] = eval[0] * the_norm[0];
+        M[8] = eval[0] * the_norm[1];
+        M[9] = eval[0] * the_norm[2];
+        M[10] = eval[1] * the_norm[0];
+        M[11] = eval[1] * the_norm[1];
+        M[12] = eval[1] * the_norm[2];
+        M[13] = eval[2] * the_norm[0];
+        M[14] = eval[2] * the_norm[1];
+        M[15] = eval[2] * the_norm[2];
 
-        M[0] = the_norm.norm();
-        M[1] = eval[0] * the_norm.norm();
-        M[2] = eval[1] * the_norm.norm();
-        M[3] = eval[2] * the_norm.norm();
-
-        M[4] = the_norm[0];
-        M[5] = the_norm[1];
-        M[6] = the_norm[2];
-
-        if constexpr(ORDER >= 1)
+        if constexpr(ORDER >= 2)
         {
-          M[7] = eval[0] * the_norm[0];
-          M[8] = eval[0] * the_norm[1];
-          M[9] = eval[0] * the_norm[2];
-          M[10] = eval[1] * the_norm[0];
-          M[11] = eval[1] * the_norm[1];
-          M[12] = eval[1] * the_norm[2];
-          M[13] = eval[2] * the_norm[0];
-          M[14] = eval[2] * the_norm[1];
-          M[15] = eval[2] * the_norm[2];
-
-          if constexpr(ORDER >= 1)
-          {
-            M[16] = eval[0] * eval[0] * the_norm[0];
-            M[17] = eval[0] * eval[0] * the_norm[1];
-            M[18] = eval[0] * eval[0] * the_norm[2];
-            M[19] = eval[0] * eval[1] * the_norm[0];
-            M[20] = eval[0] * eval[1] * the_norm[1];
-            M[21] = eval[0] * eval[1] * the_norm[2];
-            M[22] = eval[0] * eval[2] * the_norm[0];
-            M[23] = eval[0] * eval[2] * the_norm[1];
-            M[24] = eval[0] * eval[2] * the_norm[2];
-            M[25] = eval[1] * eval[0] * the_norm[0];
-            M[26] = eval[1] * eval[0] * the_norm[1];
-            M[27] = eval[1] * eval[0] * the_norm[2];
-            M[28] = eval[1] * eval[1] * the_norm[0];
-            M[29] = eval[1] * eval[1] * the_norm[1];
-            M[30] = eval[1] * eval[1] * the_norm[2];
-            M[31] = eval[1] * eval[2] * the_norm[0];
-            M[32] = eval[1] * eval[2] * the_norm[1];
-            M[33] = eval[1] * eval[2] * the_norm[2];
-            M[34] = eval[2] * eval[0] * the_norm[0];
-            M[35] = eval[2] * eval[0] * the_norm[1];
-            M[36] = eval[2] * eval[0] * the_norm[2];
-            M[37] = eval[2] * eval[1] * the_norm[0];
-            M[38] = eval[2] * eval[1] * the_norm[1];
-            M[39] = eval[2] * eval[1] * the_norm[2];
-            M[40] = eval[2] * eval[2] * the_norm[0];
-            M[41] = eval[2] * eval[2] * the_norm[1];
-            M[42] = eval[2] * eval[2] * the_norm[2];
-          }
+          M[16] = eval[0] * eval[0] * the_norm[0];
+          M[17] = eval[0] * eval[0] * the_norm[1];
+          M[18] = eval[0] * eval[0] * the_norm[2];
+          M[19] = eval[0] * eval[1] * the_norm[0];
+          M[20] = eval[0] * eval[1] * the_norm[1];
+          M[21] = eval[0] * eval[1] * the_norm[2];
+          M[22] = eval[0] * eval[2] * the_norm[0];
+          M[23] = eval[0] * eval[2] * the_norm[1];
+          M[24] = eval[0] * eval[2] * the_norm[2];
+          M[25] = eval[1] * eval[0] * the_norm[0];
+          M[26] = eval[1] * eval[0] * the_norm[1];
+          M[27] = eval[1] * eval[0] * the_norm[2];
+          M[28] = eval[1] * eval[1] * the_norm[0];
+          M[29] = eval[1] * eval[1] * the_norm[1];
+          M[30] = eval[1] * eval[1] * the_norm[2];
+          M[31] = eval[1] * eval[2] * the_norm[0];
+          M[32] = eval[1] * eval[2] * the_norm[1];
+          M[33] = eval[1] * eval[2] * the_norm[2];
+          M[34] = eval[2] * eval[0] * the_norm[0];
+          M[35] = eval[2] * eval[0] * the_norm[1];
+          M[36] = eval[2] * eval[0] * the_norm[2];
+          M[37] = eval[2] * eval[1] * the_norm[0];
+          M[38] = eval[2] * eval[1] * the_norm[1];
+          M[39] = eval[2] * eval[1] * the_norm[2];
+          M[40] = eval[2] * eval[2] * the_norm[0];
+          M[41] = eval[2] * eval[2] * the_norm[1];
+          M[42] = eval[2] * eval[2] * the_norm[2];
         }
+      }
 
-        return M;
-      };
+      return M;
+    };
 
-      ret += evaluate_area_integral(patch.getTrimmingCurves(), big_ol_integrand, npts);
+    if(useBezierExtraction)
+    {
+      for(const auto& patch : extractTrimmedBezier())
+      {
+        ret += evaluate_area_integral(
+          patch.getTrimmingCurves(),
+          [&patch, &big_ol_integrand](Point2D x) -> Vector<T, NVALS> {
+            return big_ol_integrand(patch, x);
+          },
+          npts);
+      }
+    }
+    else
+    {
+      const auto& patch = *this;
+      ret += evaluate_area_integral(
+        patch.getTrimmingCurves(),
+        [&patch, &big_ol_integrand](Point2D x) -> Vector<T, NVALS> {
+          return big_ol_integrand(patch, x);
+        },
+        npts);
     }
 
     return ret;
