@@ -70,11 +70,13 @@ axom::Array<double> bernstein_to_monomial(ArrayView<const double> bernstein_coef
  * leading coefficients.
  *
  * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
- * \param [in] tol Coefficients with magnitude at or below this threshold are
- * treated as zero when trimming the highest-degree terms.
+ * \param [in] tol Relative trimming tolerance. Coefficients with magnitude at
+ * or below `tol * max(abs(coeffs_ascending))` are treated as zero when
+ * trimming the highest-degree terms.
  *
- * \return The largest exponent whose coefficient exceeds `tol`, or `0` if the
- * polynomial is constant to within the requested tolerance.
+ * \return The largest exponent whose coefficient exceeds the scaled trimming
+ * threshold, or `0` if the polynomial is constant to within the requested
+ * tolerance.
  */
 int effective_polynomial_degree(ArrayView<const double> coeffs_ascending, double tol = 1e-12);
 
@@ -93,7 +95,8 @@ struct PolynomialRootResult
  * \brief Approximate all roots of a polynomial using the Durand-Kerner method.
  *
  * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
- * \param [in] tol Iteration tolerance and effective-zero threshold.
+ * \param [in] tol Iteration tolerance and relative effective-zero threshold
+ * used when trimming leading coefficients.
  *
  * \return The polynomial roots, sorted by real part and then imaginary part,
  * or an empty array if the iteration does not converge.
@@ -106,7 +109,8 @@ axom::Array<std::complex<double>> solve_polynomial_durand_kerner(ArrayView<const
  * including convergence diagnostics.
  *
  * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
- * \param [in] tol Iteration tolerance and effective-zero threshold.
+ * \param [in] tol Iteration tolerance and relative effective-zero threshold
+ * used when trimming leading coefficients.
  * \param [in] max_iters Maximum number of Durand-Kerner iterations.
  *
  * \return The roots and convergence metadata for the solve.

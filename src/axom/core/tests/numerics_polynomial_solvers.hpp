@@ -392,4 +392,42 @@ TEST(numerics_polynomial_solvers, solve_polynomial_durand_kerner)
     const auto roots = axom::numerics::solve_polynomial_durand_kerner(coeffs_ascending.view());
     expect_complex_eq(expected_roots, roots);
   }
+
+  {
+    SCOPED_TRACE("Repeated-root cubic is retained when residual is small");
+    const axom::Array<double> coeffs_ascending {-1.0, 3.0, -3.0, 1.0};
+    const auto result =
+      axom::numerics::solve_polynomial_durand_kerner_checked(coeffs_ascending.view());
+    const auto roots = axom::numerics::solve_polynomial_durand_kerner(coeffs_ascending.view());
+
+    EXPECT_TRUE(result.converged);
+    EXPECT_EQ(result.effective_degree, 3);
+    EXPECT_LE(result.max_residual, 1e-10);
+    ASSERT_EQ(result.roots.size(), 3);
+    ASSERT_EQ(roots.size(), 3);
+    for(axom::IndexType i = 0; i < roots.size(); ++i)
+    {
+      EXPECT_NEAR(roots[i].real(), 1.0, 1e-4);
+      EXPECT_NEAR(roots[i].imag(), 0.0, 1e-4);
+    }
+  }
+
+  {
+    SCOPED_TRACE("Low-scale polynomial keeps its effective degree");
+    const axom::Array<double> coeffs_ascending {1e-20, -2e-20, 1e-20};
+    const auto result =
+      axom::numerics::solve_polynomial_durand_kerner_checked(coeffs_ascending.view());
+    const auto roots = axom::numerics::solve_polynomial_durand_kerner(coeffs_ascending.view());
+
+    EXPECT_TRUE(result.converged);
+    EXPECT_EQ(result.effective_degree, 2);
+    EXPECT_LE(result.max_residual, 1e-10);
+    ASSERT_EQ(result.roots.size(), 2);
+    ASSERT_EQ(roots.size(), 2);
+    for(axom::IndexType i = 0; i < roots.size(); ++i)
+    {
+      EXPECT_NEAR(roots[i].real(), 1.0, 1e-4);
+      EXPECT_NEAR(roots[i].imag(), 0.0, 1e-4);
+    }
+  }
 }

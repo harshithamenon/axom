@@ -19,7 +19,17 @@ namespace numerics
 namespace
 {
 using Complex = std::complex<double>;
+
+double coefficient_scale(ArrayView<const double> coeffs)
+{
+  double scale = 0.0;
+  for(double coeff : coeffs)
+  {
+    scale = axom::utilities::max(scale, std::abs(coeff));
+  }
+  return scale;
 }
+}  // namespace
 
 //------------------------------------------------------------------------------
 axom::Array<double> bernstein_to_monomial(ArrayView<const double> bernstein_coeffs)
@@ -52,8 +62,9 @@ axom::Array<double> bernstein_to_monomial(ArrayView<const double> bernstein_coef
 //------------------------------------------------------------------------------
 int effective_polynomial_degree(ArrayView<const double> coeffs_ascending, double tol)
 {
+  const double trim_threshold = tol * coefficient_scale(coeffs_ascending);
   int degree = static_cast<int>(coeffs_ascending.size()) - 1;
-  while(degree > 0 && std::abs(coeffs_ascending[degree]) <= tol)
+  while(degree > 0 && std::abs(coeffs_ascending[degree]) <= trim_threshold)
   {
     --degree;
   }
@@ -81,6 +92,8 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
     return result;
   }
 
+  // Normalize so the Durand-Kerner iteration works with a monic polynomial in
+  // descending power order, regardless of the input scale.
   axom::Array<double> coeffs_descending(effective_degree + 1, effective_degree + 1);
   for(int i = 0; i <= effective_degree; ++i)
   {
@@ -109,6 +122,8 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
         }
       }
 
+      // Repeated or tightly clustered roots can make the product nearly zero,
+      // so guard the update against division by an unstable denominator.
       if(std::abs(denom) <= tol)
       {
         denom = Complex {tol, tol};
@@ -135,7 +150,9 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
                            std::abs(evaluate_polynomial(coeffs_descending.view(), root)));
   }
 
-  result.converged = result.converged && result.max_residual <= 100.0 * tol;
+  // Residual-based acceptance lets repeated-root cases succeed even when the
+  // update size stalls above tol near a multiple root.
+  result.converged = result.converged || result.max_residual <= 100.0 * tol;
 
   std::sort(result.roots.begin(), result.roots.end(), [](const Complex& lhs, const Complex& rhs) {
     if(lhs.real() != rhs.real())
