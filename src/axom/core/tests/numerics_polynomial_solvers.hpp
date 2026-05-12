@@ -5,15 +5,22 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 // Axom includes
+#include "axom/core/Array.hpp"
 #include "axom/core/numerics/polynomial_solvers.hpp"
 #include "axom/core/utilities/Utilities.hpp"  // for isNearlyEqual()
 
 // Google Test include
 #include "gtest/gtest.h"
 
-int count_mismatches(double* standard, double* test, int n, double thresh = 1.0e-8);
+int count_mismatches(const axom::Array<double>& standard,
+                     const axom::Array<double>& test,
+                     int n,
+                     double thresh = 1.0e-8);
 
-int count_mismatches(double* standard, double* test, int n, double thresh)
+int count_mismatches(const axom::Array<double>& standard,
+                     const axom::Array<double>& test,
+                     int n,
+                     double thresh)
 {
   int mcount = 0;
 
@@ -30,9 +37,9 @@ int count_mismatches(double* standard, double* test, int n, double thresh)
 
 TEST(numerics_polynomial_solvers, solve_linear)
 {
-  double coeff[2];
-  double roots[1];
-  double expected[1];
+  axom::Array<double> coeff {0.0, 0.0};
+  axom::Array<double> roots {0.0};
+  axom::Array<double> expected {0.0};
   int n = 1;
   int rc;
 
@@ -44,7 +51,7 @@ TEST(numerics_polynomial_solvers, solve_linear)
     coeff[1] = 1;
     roots[0] = 0;
     expected[0] = 0;
-    rc = axom::numerics::solve_linear(coeff, roots, n);
+    rc = axom::numerics::solve_linear(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 1), 0);
@@ -56,7 +63,7 @@ TEST(numerics_polynomial_solvers, solve_linear)
     coeff[1] = 18;
     roots[0] = 0;
     expected[0] = 0;
-    rc = axom::numerics::solve_linear(coeff, roots, n);
+    rc = axom::numerics::solve_linear(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 1), 0);
@@ -68,7 +75,7 @@ TEST(numerics_polynomial_solvers, solve_linear)
     coeff[1] = 0.5;
     roots[0] = 0;
     expected[0] = 2;
-    rc = axom::numerics::solve_linear(coeff, roots, n);
+    rc = axom::numerics::solve_linear(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 1), 0);
@@ -80,7 +87,7 @@ TEST(numerics_polynomial_solvers, solve_linear)
     coeff[1] = -1;
     roots[0] = 0;
     expected[0] = 0.5;
-    rc = axom::numerics::solve_linear(coeff, roots, n);
+    rc = axom::numerics::solve_linear(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 1), 0);
@@ -92,7 +99,7 @@ TEST(numerics_polynomial_solvers, solve_linear)
     coeff[1] = 0;
     roots[0] = 0;
     expected[0] = 0;
-    rc = axom::numerics::solve_linear(coeff, roots, n);
+    rc = axom::numerics::solve_linear(coeff.view(), roots.view(), n);
     // rc == 0 because there are real solutions
     EXPECT_EQ(rc, 0);
     // n == -1 because there are infinitely many solutions
@@ -103,9 +110,9 @@ TEST(numerics_polynomial_solvers, solve_linear)
 
 TEST(numerics_polynomial_solvers, solve_quadratic)
 {
-  double coeff[3];
-  double roots[2];
-  double expected[2];
+  axom::Array<double> coeff {0.0, 0.0, 0.0};
+  axom::Array<double> roots {0.0, 0.0};
+  axom::Array<double> expected {0.0, 0.0};
   int n = 2;
   int rc;
 
@@ -121,7 +128,7 @@ TEST(numerics_polynomial_solvers, solve_quadratic)
     roots[1] = 0;
     expected[0] = -2.3;
     expected[1] = -2.3;
-    rc = axom::numerics::solve_quadratic(coeff, roots, n);
+    rc = axom::numerics::solve_quadratic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 2), 0);
@@ -137,7 +144,7 @@ TEST(numerics_polynomial_solvers, solve_quadratic)
     roots[1] = 0;
     expected[0] = 1.5;
     expected[1] = 1.5;
-    rc = axom::numerics::solve_quadratic(coeff, roots, n);
+    rc = axom::numerics::solve_quadratic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 2), 0);
@@ -153,7 +160,7 @@ TEST(numerics_polynomial_solvers, solve_quadratic)
     roots[1] = 0;
     expected[0] = 2;
     expected[1] = -0.7;
-    rc = axom::numerics::solve_quadratic(coeff, roots, n);
+    rc = axom::numerics::solve_quadratic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 2);
     EXPECT_EQ(count_mismatches(expected, roots, 2), 0);
@@ -169,7 +176,7 @@ TEST(numerics_polynomial_solvers, solve_quadratic)
     roots[1] = 0;
     expected[0] = 0;
     expected[1] = 0;
-    rc = axom::numerics::solve_quadratic(coeff, roots, n);
+    rc = axom::numerics::solve_quadratic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, -1);
     EXPECT_EQ(n, 0);
     EXPECT_EQ(count_mismatches(expected, roots, 2), 0);
@@ -185,7 +192,7 @@ TEST(numerics_polynomial_solvers, solve_quadratic)
     roots[1] = 0;
     expected[0] = 0;
     expected[1] = 0;
-    rc = axom::numerics::solve_quadratic(coeff, roots, n);
+    rc = axom::numerics::solve_quadratic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, -1);
     EXPECT_EQ(n, 0);
     EXPECT_EQ(count_mismatches(expected, roots, 2), 0);
@@ -194,9 +201,9 @@ TEST(numerics_polynomial_solvers, solve_quadratic)
 
 TEST(numerics_polynomial_solvers, solve_cubic)
 {
-  double coeff[4];
-  double roots[3];
-  double expected[3];
+  axom::Array<double> coeff {0.0, 0.0, 0.0, 0.0};
+  axom::Array<double> roots {0.0, 0.0, 0.0};
+  axom::Array<double> expected {0.0, 0.0, 0.0};
   int n = 3;
   int rc;
 
@@ -215,7 +222,7 @@ TEST(numerics_polynomial_solvers, solve_cubic)
     expected[0] = 1.2;
     expected[1] = 1.2;
     expected[2] = 1.2;
-    rc = axom::numerics::solve_cubic(coeff, roots, n);
+    rc = axom::numerics::solve_cubic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 3, 5.0e-5), 0);
@@ -234,7 +241,7 @@ TEST(numerics_polynomial_solvers, solve_cubic)
     expected[0] = 2;
     expected[1] = 0;
     expected[2] = 0;
-    rc = axom::numerics::solve_cubic(coeff, roots, n);
+    rc = axom::numerics::solve_cubic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 1);
     EXPECT_EQ(count_mismatches(expected, roots, 3), 0);
@@ -253,7 +260,7 @@ TEST(numerics_polynomial_solvers, solve_cubic)
     expected[0] = 3;
     expected[1] = -2;
     expected[2] = -2;
-    rc = axom::numerics::solve_cubic(coeff, roots, n);
+    rc = axom::numerics::solve_cubic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 2);
     EXPECT_EQ(count_mismatches(expected, roots, 3), 0);
@@ -272,7 +279,7 @@ TEST(numerics_polynomial_solvers, solve_cubic)
     expected[0] = 8;
     expected[1] = 1;
     expected[2] = -0.8;
-    rc = axom::numerics::solve_cubic(coeff, roots, n);
+    rc = axom::numerics::solve_cubic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 3);
     EXPECT_EQ(count_mismatches(expected, roots, 3), 0);
@@ -292,7 +299,7 @@ TEST(numerics_polynomial_solvers, solve_cubic)
     expected[0] = 0.001;
     expected[1] = -1;
     expected[2] = -38;
-    rc = axom::numerics::solve_cubic(coeff, roots, n);
+    rc = axom::numerics::solve_cubic(coeff.view(), roots.view(), n);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(n, 3);
     EXPECT_EQ(count_mismatches(expected, roots, 3), 0);

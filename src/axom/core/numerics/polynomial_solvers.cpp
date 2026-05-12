@@ -4,25 +4,26 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/core/utilities/Utilities.hpp"  // for isNearlyEqual()
-
+#include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/numerics/polynomial_solvers.hpp"
 
-// C/C++ includes
-#include <cassert>  // for assert()
+#include <cassert>
+#include <cmath>
 
 namespace axom
 {
 namespace numerics
 {
-//------------------------------------------------------------------------------
-int solve_linear(const double* coeff, double* roots, int& numRoots)
+int solve_linear(ArrayView<const double> coeff, ArrayView<double> roots, int& numRoots)
 {
+  assert(coeff.size() >= 2);
+  assert(roots.size() >= 1);
+
   int status = -1;
 
   // solve ax + b = 0
-  double a = coeff[1];
-  double b = coeff[0];
+  const double a = coeff[1];
+  const double b = coeff[0];
 
   if(utilities::isNearlyEqual(a, 0.))
   {
@@ -50,14 +51,33 @@ int solve_linear(const double* coeff, double* roots, int& numRoots)
 }
 
 //------------------------------------------------------------------------------
-int solve_quadratic(const double* coeff, double* roots, int& numRoots)
+#ifdef _MSC_VER
+  #pragma warning(push)
+  #pragma warning(disable : 4244)
+#endif
+int solve_linear(const double* coeff, double* roots, int& numRoots)
 {
+  return solve_linear(ArrayView<const double>(coeff,
+                                              axom::StackArray<axom::IndexType, 1> {2},
+                                              axom::StackArray<axom::IndexType, 1> {1}),
+                      ArrayView<double>(roots,
+                                        axom::StackArray<axom::IndexType, 1> {1},
+                                        axom::StackArray<axom::IndexType, 1> {1}),
+                      numRoots);
+}
+
+//------------------------------------------------------------------------------
+int solve_quadratic(ArrayView<const double> coeff, ArrayView<double> roots, int& numRoots)
+{
+  assert(coeff.size() >= 3);
+  assert(roots.size() >= 2);
+
   int status = -1;
 
   // solve ax^2 + bx + c = 0
-  double a = coeff[2];
-  double b = coeff[1];
-  double c = coeff[0];
+  const double a = coeff[2];
+  const double b = coeff[1];
+  const double c = coeff[0];
 
   if(utilities::isNearlyEqual(a, 0.))
   {
@@ -65,8 +85,8 @@ int solve_quadratic(const double* coeff, double* roots, int& numRoots)
     return solve_linear(coeff, roots, numRoots);
   }
 
-  double discriminant = b * b - 4 * a * c;
-  double overtwoa = 1. / (2 * a);
+  const double discriminant = b * b - 4 * a * c;
+  const double overtwoa = 1. / (2 * a);
 
   if(utilities::isNearlyEqual(discriminant, 0.))
   {
@@ -85,12 +105,24 @@ int solve_quadratic(const double* coeff, double* roots, int& numRoots)
     // Two real roots
     status = 0;
     numRoots = 2;
-    double sqrtdisc = std::sqrt(discriminant);
+    const double sqrtdisc = std::sqrt(discriminant);
     roots[0] = (-b + sqrtdisc) * overtwoa;
     roots[1] = (-b - sqrtdisc) * overtwoa;
   }
 
   return status;
+}
+
+//------------------------------------------------------------------------------
+int solve_quadratic(const double* coeff, double* roots, int& numRoots)
+{
+  return solve_quadratic(ArrayView<const double>(coeff,
+                                                 axom::StackArray<axom::IndexType, 1> {3},
+                                                 axom::StackArray<axom::IndexType, 1> {1}),
+                         ArrayView<double>(roots,
+                                           axom::StackArray<axom::IndexType, 1> {2},
+                                           axom::StackArray<axom::IndexType, 1> {1}),
+                         numRoots);
 }
 
 inline double cuberoot(double x)
@@ -107,8 +139,11 @@ inline double cuberoot(double x)
 }
 
 //------------------------------------------------------------------------------
-int solve_cubic(const double* coeff, double* roots, int& numRoots)
+int solve_cubic(ArrayView<const double> coeff, ArrayView<double> roots, int& numRoots)
 {
+  assert(coeff.size() >= 4);
+  assert(roots.size() >= 3);
+
   int status = -1;
 
   // Here I use variable names as presented in Korn & Korn:
@@ -125,21 +160,21 @@ int solve_cubic(const double* coeff, double* roots, int& numRoots)
   }
 
   // We normalize by dividing all by the cubic coefficient.
-  double invcubecoeff = 1. / cubecoeff;
+  const double invcubecoeff = 1. / cubecoeff;
   a *= invcubecoeff;
   b *= invcubecoeff;
   c *= invcubecoeff;
 
   // Note that p and q differ by a multiplicative constant from Korn,
   // because they're always used with that multiplication.
-  double p = (-a * a + 3 * b) / 9;                      //  1/3 Korn's p
-  double q = (a * (-2 * a * a + 9 * b) - 27 * c) / 54;  // -1/2 Korn's q
+  const double p = (-a * a + 3 * b) / 9;                      //  1/3 Korn's p
+  const double q = (a * (-2 * a * a + 9 * b) - 27 * c) / 54;  // -1/2 Korn's q
 
-  double Q = p * p * p + q * q;  // actual discriminant == -108Q
+  const double Q = p * p * p + q * q;  // actual discriminant == -108Q
   // the term chVar occurs because we've changed variables
   // (x = y - a/3) and we need to change back to x.
   const double onethird = 1. / 3.;
-  double chVar = -a * onethird;
+  const double chVar = -a * onethird;
 
   if(utilities::isNearlyEqual(Q, 0.))
   {
@@ -154,7 +189,7 @@ int solve_cubic(const double* coeff, double* roots, int& numRoots)
     }
     status = 0;
 
-    double cuberootq = cuberoot(q);
+    const double cuberootq = cuberoot(q);
     roots[0] = chVar + 2 * cuberootq;
     roots[1] = chVar - cuberootq;
     roots[2] = roots[1];
@@ -167,9 +202,9 @@ int solve_cubic(const double* coeff, double* roots, int& numRoots)
     numRoots = 1;
     status = 0;
 
-    double sqrtQ = sqrt(Q);
-    double A = cuberoot(q + sqrtQ);
-    double B = cuberoot(q - sqrtQ);
+    const double sqrtQ = sqrt(Q);
+    const double A = cuberoot(q + sqrtQ);
+    const double B = cuberoot(q - sqrtQ);
 
     roots[0] = chVar + A + B;
     roots[1] = 0;
@@ -193,8 +228,8 @@ int solve_cubic(const double* coeff, double* roots, int& numRoots)
     numRoots = 3;
     status = 0;
 
-    double alpha = acos(q / sqrt(-p * p * p));
-    double m = 2 * sqrt(-p);
+    const double alpha = acos(q / sqrt(-p * p * p));
+    const double m = 2 * sqrt(-p);
 
     roots[0] = chVar + m * cos(alpha * onethird);
     roots[1] = chVar - m * cos((alpha + M_PI) * onethird);
@@ -203,6 +238,22 @@ int solve_cubic(const double* coeff, double* roots, int& numRoots)
 
   return status;
 }
+
+//------------------------------------------------------------------------------
+int solve_cubic(const double* coeff, double* roots, int& numRoots)
+{
+  return solve_cubic(ArrayView<const double>(coeff,
+                                             axom::StackArray<axom::IndexType, 1> {4},
+                                             axom::StackArray<axom::IndexType, 1> {1}),
+                     ArrayView<double>(roots,
+                                       axom::StackArray<axom::IndexType, 1> {3},
+                                       axom::StackArray<axom::IndexType, 1> {1}),
+                     numRoots);
+}
+
+#ifdef _MSC_VER
+  #pragma warning(pop)
+#endif
 
 } /* end namespace numerics */
 } /* end namespace axom */
