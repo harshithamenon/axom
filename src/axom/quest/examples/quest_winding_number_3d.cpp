@@ -245,13 +245,17 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC>,
+using GWNQueryType = std::variant<axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC, 0>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC, 1>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC, 2>,
                                   axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 0>,
                                   axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 1>,
                                   axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 2>
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
                                   ,
-                                  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC, 0>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC, 1>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC, 2>,
                                   axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 0>,
                                   axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 1>,
                                   axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 2>
@@ -261,23 +265,27 @@ using GWNQueryType = std::variant<axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC
 template <typename ExecSpace>
 GWNQueryType pick_gwn_method(bool triangulate, int approximation_order)
 {
-  if(triangulate)
+  if(approximation_order == 0)
   {
-    if(approximation_order == 0)
-    {
+    if(triangulate)
       return axom::quest::TriangleGWNQuery<ExecSpace, 0> {};
-    }
-    else if(approximation_order == 1)
-    {
-      return axom::quest::TriangleGWNQuery<ExecSpace, 1> {};
-    }
-    else  // approximation_order == 2
-    {
-      return axom::quest::TriangleGWNQuery<ExecSpace, 2> {};
-    }
+    else
+      return axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> {};
   }
-
-  return axom::quest::NURBSPatchGWNQuery<ExecSpace> {};
+  else if(approximation_order == 1)
+  {
+    if(triangulate)
+      return axom::quest::TriangleGWNQuery<ExecSpace, 1> {};
+    else
+      return axom::quest::NURBSPatchGWNQuery<ExecSpace, 1> {};
+  }
+  else  // approximation_order == 2
+  {
+    if(triangulate)
+      return axom::quest::TriangleGWNQuery<ExecSpace, 2> {};
+    else
+      return axom::quest::NURBSPatchGWNQuery<ExecSpace, 2> {};
+  }
 }
 
 GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
