@@ -1117,8 +1117,8 @@ struct gwn_input_traits<axom::quest::PolylineGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Polyline>
 { };
 
-template <typename ExecSpace>
-struct gwn_input_traits<axom::quest::NURBSCurveGWNQuery<ExecSpace>>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::NURBSCurveGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Curve>
 { };
 
@@ -1127,8 +1127,8 @@ struct gwn_input_traits<axom::quest::TriangleGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Triangulation>
 { };
 
-template <typename ExecSpace>
-struct gwn_input_traits<axom::quest::NURBSPatchGWNQuery<ExecSpace>>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::NURBSPatchGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Surface>
 { };
 

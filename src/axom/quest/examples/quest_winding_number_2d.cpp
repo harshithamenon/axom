@@ -433,21 +433,21 @@ GWNQueryType pick_gwn_method(bool linearize_curves, int approximation_order)
 {
   if(approximation_order == 0)
   {
-    if(triangulate)
+    if(linearize_curves)
       return axom::quest::PolylineGWNQuery<ExecSpace, 0> {};
     else
       return axom::quest::NURBSCurveGWNQuery<ExecSpace, 0> {};
   }
   else if(approximation_order == 1)
   {
-    if(triangulate)
+    if(linearize_curves)
       return axom::quest::PolylineGWNQuery<ExecSpace, 1> {};
     else
       return axom::quest::NURBSCurveGWNQuery<ExecSpace, 1> {};
   }
   else  // approximation_order == 2
   {
-    if(triangulate)
+    if(linearize_curves)
       return axom::quest::PolylineGWNQuery<ExecSpace, 2> {};
     else
       return axom::quest::NURBSCurveGWNQuery<ExecSpace, 2> {};
