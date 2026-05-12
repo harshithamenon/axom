@@ -7,7 +7,10 @@
 #ifndef AXOM_NUMERICS_POLY_SOLVE_HPP_
 #define AXOM_NUMERICS_POLY_SOLVE_HPP_
 
+#include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
+
+#include <complex>
 
 /*!
  * \file polynomial_solve.hpp
@@ -28,6 +31,89 @@ namespace axom
 {
 namespace numerics
 {
+
+/*!
+ * \brief Evaluate a polynomial with coefficients stored in descending power order.
+ *
+ * \tparam ScalarType The scalar type used for evaluation, e.g. `double` or `std::complex<double>`.
+ * \param [in] coeffs_descending Polynomial coefficients in descending power order.
+ * \param [in] x The evaluation point.
+ *
+ * \return The polynomial value at `x`.
+ */
+template <typename ScalarType>
+ScalarType evaluate_polynomial(ArrayView<const double> coeffs_descending, const ScalarType& x)
+{
+  ScalarType value {0.0};
+  for(double coeff : coeffs_descending)
+  {
+    value = value * x + coeff;
+  }
+  return value;
+}
+
+/*!
+ * \brief Convert Bernstein coefficients to monomial coefficients on `[0, 1]`.
+ *
+ * Given Bernstein coefficients \f$ b_i \f$ of degree \f$ n \f$, this returns
+ * monomial coefficients \f$ a_i \f$ such that
+ * \f$ \sum_i b_i B_i^n(t) = \sum_i a_i t^i \f$.
+ *
+ * \param [in] bernstein_coeffs Coefficients in the Bernstein basis.
+ *
+ * \return Coefficients in ascending monomial order.
+ */
+axom::Array<double> bernstein_to_monomial(ArrayView<const double> bernstein_coeffs);
+
+/*!
+ * \brief Return the effective degree of a polynomial after trimming near-zero
+ * leading coefficients.
+ *
+ * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
+ * \param [in] tol Coefficients with magnitude at or below this threshold are
+ * treated as zero when trimming the highest-degree terms.
+ *
+ * \return The largest exponent whose coefficient exceeds `tol`, or `0` if the
+ * polynomial is constant to within the requested tolerance.
+ */
+int effective_polynomial_degree(ArrayView<const double> coeffs_ascending, double tol = 1e-12);
+
+/// \brief Result metadata for an all-roots polynomial solve.
+struct PolynomialRootResult
+{
+  axom::Array<std::complex<double>> roots;
+  bool converged {false};
+  int iterations {0};
+  int effective_degree {0};
+  double max_update {0.0};
+  double max_residual {0.0};
+};
+
+/*!
+ * \brief Approximate all roots of a polynomial using the Durand-Kerner method.
+ *
+ * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
+ * \param [in] tol Iteration tolerance and effective-zero threshold.
+ *
+ * \return The polynomial roots, sorted by real part and then imaginary part,
+ * or an empty array if the iteration does not converge.
+ */
+axom::Array<std::complex<double>> solve_polynomial_durand_kerner(ArrayView<const double> coeffs_ascending,
+                                                                 double tol = 1e-12);
+
+/*!
+ * \brief Approximate all roots of a polynomial using the Durand-Kerner method,
+ * including convergence diagnostics.
+ *
+ * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
+ * \param [in] tol Iteration tolerance and effective-zero threshold.
+ * \param [in] max_iters Maximum number of Durand-Kerner iterations.
+ *
+ * \return The roots and convergence metadata for the solve.
+ */
+PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const double> coeffs_ascending,
+                                                            double tol = 1e-12,
+                                                            int max_iters = 200);
 
 /*!
  * \brief Find the real root for a linear equation of form \f$ ax + b = 0 \f$.
@@ -52,7 +138,8 @@ int solve_linear(ArrayView<const double> coeff, ArrayView<double> roots, int& nu
  * \brief Deprecated pointer-based overload for \ref solve_linear(ArrayView<const
  * double>, ArrayView<double>, int&).
  */
-[[deprecated("Use solve_linear(axom::ArrayView<const double>, axom::ArrayView<double>, int&) instead.")]]
+[[deprecated(
+  "Use solve_linear(axom::ArrayView<const double>, axom::ArrayView<double>, int&) instead.")]]
 int solve_linear(const double* coeff, double* roots, int& numRoots);
 
 /*!
@@ -79,7 +166,8 @@ int solve_quadratic(ArrayView<const double> coeff, ArrayView<double> roots, int&
  * \brief Deprecated pointer-based overload for \ref
  * solve_quadratic(ArrayView<const double>, ArrayView<double>, int&).
  */
-[[deprecated("Use solve_quadratic(axom::ArrayView<const double>, axom::ArrayView<double>, int&) instead.")]]
+[[deprecated(
+  "Use solve_quadratic(axom::ArrayView<const double>, axom::ArrayView<double>, int&) instead.")]]
 int solve_quadratic(const double* coeff, double* roots, int& numRoots);
 
 /*!
@@ -140,7 +228,8 @@ int solve_cubic(ArrayView<const double> coeff, ArrayView<double> roots, int& num
  * \brief Deprecated pointer-based overload for \ref
  * solve_cubic(ArrayView<const double>, ArrayView<double>, int&).
  */
-[[deprecated("Use solve_cubic(axom::ArrayView<const double>, axom::ArrayView<double>, int&) instead.")]]
+[[deprecated(
+  "Use solve_cubic(axom::ArrayView<const double>, axom::ArrayView<double>, int&) instead.")]]
 int solve_cubic(const double* coeff, double* roots, int& numRoots);
 
 }  // namespace numerics

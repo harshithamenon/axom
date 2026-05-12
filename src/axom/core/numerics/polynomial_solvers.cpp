@@ -7,13 +7,156 @@
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/numerics/polynomial_solvers.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <complex>
 
 namespace axom
 {
 namespace numerics
 {
+namespace
+{
+using Complex = std::complex<double>;
+}
+
+//------------------------------------------------------------------------------
+axom::Array<double> bernstein_to_monomial(ArrayView<const double> bernstein_coeffs)
+{
+  const axom::IndexType num_coeffs = bernstein_coeffs.size();
+  axom::Array<double> monomial_coeffs(num_coeffs, num_coeffs);
+  for(axom::IndexType i = 0; i < num_coeffs; ++i)
+  {
+    monomial_coeffs[i] = bernstein_coeffs[i];
+  }
+
+  const int degree = static_cast<int>(bernstein_coeffs.size()) - 1;
+
+  for(int order = degree; order >= 1; --order)
+  {
+    for(int j = order; j <= degree; ++j)
+    {
+      monomial_coeffs[j] -= monomial_coeffs[j - 1];
+    }
+  }
+
+  for(int k = 0; k <= degree; ++k)
+  {
+    monomial_coeffs[k] *= axom::utilities::binomialCoefficient(degree, k);
+  }
+
+  return monomial_coeffs;
+}
+
+//------------------------------------------------------------------------------
+int effective_polynomial_degree(ArrayView<const double> coeffs_ascending, double tol)
+{
+  int degree = static_cast<int>(coeffs_ascending.size()) - 1;
+  while(degree > 0 && std::abs(coeffs_ascending[degree]) <= tol)
+  {
+    --degree;
+  }
+  return degree;
+}
+
+//------------------------------------------------------------------------------
+PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const double> coeffs_ascending,
+                                                            double tol,
+                                                            int max_iters)
+{
+  PolynomialRootResult result;
+  const int degree = static_cast<int>(coeffs_ascending.size()) - 1;
+  if(degree <= 0)
+  {
+    result.converged = true;
+    return result;
+  }
+
+  const int effective_degree = effective_polynomial_degree(coeffs_ascending, tol);
+  result.effective_degree = effective_degree;
+  if(effective_degree <= 0)
+  {
+    result.converged = true;
+    return result;
+  }
+
+  axom::Array<double> coeffs_descending(effective_degree + 1, effective_degree + 1);
+  for(int i = 0; i <= effective_degree; ++i)
+  {
+    coeffs_descending[i] =
+      coeffs_ascending[effective_degree - i] / coeffs_ascending[effective_degree];
+  }
+
+  result.roots.resize(effective_degree);
+  const Complex seed_center {0.4, 0.9};
+  for(int i = 0; i < effective_degree; ++i)
+  {
+    result.roots[i] = std::pow(seed_center, i + 1);
+  }
+
+  for(int iter = 0; iter < max_iters; ++iter)
+  {
+    double max_update = 0.0;
+    for(int i = 0; i < effective_degree; ++i)
+    {
+      Complex denom {1.0, 0.0};
+      for(int j = 0; j < effective_degree; ++j)
+      {
+        if(i != j)
+        {
+          denom *= result.roots[i] - result.roots[j];
+        }
+      }
+
+      if(std::abs(denom) <= tol)
+      {
+        denom = Complex {tol, tol};
+      }
+
+      const Complex update = evaluate_polynomial(coeffs_descending.view(), result.roots[i]) / denom;
+      result.roots[i] -= update;
+      max_update = axom::utilities::max(max_update, std::abs(update));
+    }
+
+    result.iterations = iter + 1;
+    result.max_update = max_update;
+    if(max_update <= tol)
+    {
+      result.converged = true;
+      break;
+    }
+  }
+
+  for(const auto& root : result.roots)
+  {
+    result.max_residual =
+      axom::utilities::max(result.max_residual,
+                           std::abs(evaluate_polynomial(coeffs_descending.view(), root)));
+  }
+
+  result.converged = result.converged && result.max_residual <= 100.0 * tol;
+
+  std::sort(result.roots.begin(), result.roots.end(), [](const Complex& lhs, const Complex& rhs) {
+    if(lhs.real() != rhs.real())
+    {
+      return lhs.real() < rhs.real();
+    }
+    return lhs.imag() < rhs.imag();
+  });
+
+  return result;
+}
+
+//------------------------------------------------------------------------------
+axom::Array<Complex> solve_polynomial_durand_kerner(ArrayView<const double> coeffs_ascending,
+                                                    double tol)
+{
+  const auto result = solve_polynomial_durand_kerner_checked(coeffs_ascending, tol);
+  return result.converged ? result.roots : axom::Array<Complex> {};
+}
+
+//------------------------------------------------------------------------------
 int solve_linear(ArrayView<const double> coeff, ArrayView<double> roots, int& numRoots)
 {
   assert(coeff.size() >= 2);

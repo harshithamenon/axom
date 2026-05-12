@@ -305,3 +305,91 @@ TEST(numerics_polynomial_solvers, solve_cubic)
     EXPECT_EQ(count_mismatches(expected, roots, 3), 0);
   }
 }
+
+TEST(numerics_polynomial_solvers, bernstein_to_monomial)
+{
+  {
+    SCOPED_TRACE("Quadratic Bernstein conversion");
+    const axom::Array<double> bernstein_coeffs {1.0, 2.0, 4.0};
+    const axom::Array<double> expected_monomial {1.0, 2.0, 1.0};
+    const auto monomial_coeffs = axom::numerics::bernstein_to_monomial(bernstein_coeffs.view());
+
+    ASSERT_EQ(expected_monomial.size(), monomial_coeffs.size());
+    for(axom::IndexType i = 0; i < expected_monomial.size(); ++i)
+    {
+      EXPECT_DOUBLE_EQ(expected_monomial[i], monomial_coeffs[i]);
+    }
+  }
+
+  {
+    SCOPED_TRACE("Cubic Bernstein conversion");
+    const axom::Array<double> bernstein_coeffs {2.0, 3.0, 5.0, 8.0};
+    const axom::Array<double> expected_monomial {2.0, 3.0, 3.0, 0.0};
+    const auto monomial_coeffs = axom::numerics::bernstein_to_monomial(bernstein_coeffs.view());
+
+    ASSERT_EQ(expected_monomial.size(), monomial_coeffs.size());
+    for(axom::IndexType i = 0; i < expected_monomial.size(); ++i)
+    {
+      EXPECT_DOUBLE_EQ(expected_monomial[i], monomial_coeffs[i]);
+    }
+  }
+}
+
+TEST(numerics_polynomial_solvers, evaluate_polynomial)
+{
+  const axom::Array<double> coeffs_descending {1.0, -3.0, 2.0};
+  const std::complex<double> x {1.0, 1.0};
+  const std::complex<double> value = axom::numerics::evaluate_polynomial(coeffs_descending.view(), x);
+
+  EXPECT_DOUBLE_EQ(-1.0, value.real());
+  EXPECT_DOUBLE_EQ(-1.0, value.imag());
+}
+
+TEST(numerics_polynomial_solvers, solve_polynomial_durand_kerner)
+{
+  auto expect_complex_eq = [](const axom::Array<std::complex<double>>& expected,
+                              const axom::Array<std::complex<double>>& actual,
+                              double tol = 1e-10) {
+    ASSERT_EQ(expected.size(), actual.size());
+    for(axom::IndexType i = 0; i < expected.size(); ++i)
+    {
+      EXPECT_NEAR(expected[i].real(), actual[i].real(), tol);
+      EXPECT_NEAR(expected[i].imag(), actual[i].imag(), tol);
+    }
+  };
+
+  {
+    SCOPED_TRACE("Two distinct real roots");
+    const axom::Array<double> coeffs_ascending {6.0, -5.0, 1.0};
+    axom::Array<std::complex<double>> expected_roots {std::complex<double> {2.0, 0.0},
+                                                      std::complex<double> {3.0, 0.0}};
+    const auto result =
+      axom::numerics::solve_polynomial_durand_kerner_checked(coeffs_ascending.view());
+    EXPECT_TRUE(result.converged);
+    EXPECT_EQ(result.effective_degree, 2);
+    EXPECT_LE(result.max_residual, 1e-10);
+    expect_complex_eq(expected_roots, result.roots);
+  }
+
+  {
+    SCOPED_TRACE("Purely imaginary roots");
+    const axom::Array<double> coeffs_ascending {1.0, 0.0, 1.0};
+    axom::Array<std::complex<double>> expected_roots {std::complex<double> {0.0, -1.0},
+                                                      std::complex<double> {0.0, 1.0}};
+    const auto result =
+      axom::numerics::solve_polynomial_durand_kerner_checked(coeffs_ascending.view());
+    EXPECT_TRUE(result.converged);
+    EXPECT_EQ(result.effective_degree, 2);
+    EXPECT_LE(result.max_residual, 1e-10);
+    expect_complex_eq(expected_roots, result.roots);
+  }
+
+  {
+    SCOPED_TRACE("Trailing zero high-order coefficient is ignored");
+    const axom::Array<double> coeffs_ascending {2.0, -3.0, 1.0, 0.0};
+    axom::Array<std::complex<double>> expected_roots {std::complex<double> {1.0, 0.0},
+                                                      std::complex<double> {2.0, 0.0}};
+    const auto roots = axom::numerics::solve_polynomial_durand_kerner(coeffs_ascending.view());
+    expect_complex_eq(expected_roots, roots);
+  }
+}
