@@ -34,12 +34,7 @@ double coefficient_scale(ArrayView<const double> coeffs)
 //------------------------------------------------------------------------------
 axom::Array<double> bernstein_to_monomial(ArrayView<const double> bernstein_coeffs)
 {
-  const axom::IndexType num_coeffs = bernstein_coeffs.size();
-  axom::Array<double> monomial_coeffs(num_coeffs, num_coeffs);
-  for(axom::IndexType i = 0; i < num_coeffs; ++i)
-  {
-    monomial_coeffs[i] = bernstein_coeffs[i];
-  }
+  axom::Array<double> monomial_coeffs(bernstein_coeffs);
 
   const int degree = static_cast<int>(bernstein_coeffs.size()) - 1;
 
@@ -92,8 +87,8 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
     return result;
   }
 
-  // Normalize so the Durand-Kerner iteration works with a monic polynomial in
-  // descending power order, regardless of the input scale.
+  // Normalize so the Durand-Kerner iteration works with a monic polynomial (highest coefficient 1)
+  // in descending power order, regardless of the input scale.
   axom::Array<double> coeffs_descending(effective_degree + 1, effective_degree + 1);
   for(int i = 0; i <= effective_degree; ++i)
   {
@@ -102,12 +97,15 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
   }
 
   result.roots.resize(effective_degree);
+  // Powers of this non-real base with magnitude around 1 give deterministic, distinct initial guesses.
   const Complex seed_center {0.4, 0.9};
   for(int i = 0; i < effective_degree; ++i)
   {
     result.roots[i] = std::pow(seed_center, i + 1);
   }
 
+  // Each sweep updates every root estimate by subtracting p(z_i) divided by
+  // the product of differences from the current guesses for all other roots.
   for(int iter = 0; iter < max_iters; ++iter)
   {
     double max_update = 0.0;
