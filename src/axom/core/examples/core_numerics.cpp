@@ -90,6 +90,7 @@ void demoVectorOps()
   // Find the real roots of a cubic equation.
   // (x + 2)(x - 1)(2x - 3) = 0 = 2x^3 - x^2 - 7x + 6 has real roots at
   // x = -2, x = 1, x = 1.5.
+  // Coefficients are in ascending power order: [c0, c1, c2, c3] for c0 + c1*x + c2*x^2 + c3*x^3
   axom::Array<double> coeff {6., -7., -1., 2.};
   axom::Array<double> roots {0., 0., 0.};
   int numRoots;

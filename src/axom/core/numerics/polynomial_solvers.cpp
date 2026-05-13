@@ -73,6 +73,9 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
 {
   PolynomialRootResult result;
   const int degree = static_cast<int>(coeffs_ascending.size()) - 1;
+
+  // Degree 0 or negative indicates a constant polynomial with no finite roots.
+  // Empty root array with converged=true signals successful handling of the degenerate case.
   if(degree <= 0)
   {
     result.converged = true;
@@ -81,6 +84,9 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
 
   const int effective_degree = effective_polynomial_degree(coeffs_ascending, tol);
   result.effective_degree = effective_degree;
+
+  // Effective degree 0 means the polynomial has been trimmed to a near-constant
+  // after removing near-zero high-order terms. Same handling as degree 0 above.
   if(effective_degree <= 0)
   {
     result.converged = true;
@@ -148,9 +154,10 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
                            std::abs(evaluate_polynomial(coeffs_descending.view(), root)));
   }
 
-  // Residual-based acceptance lets repeated-root cases succeed even when the
-  // update size stalls above tol near a multiple root.
-  result.converged = result.converged || result.max_residual <= 100.0 * tol;
+  // Residual-based acceptance lets repeated-root cases succeed even when the update size stalls
+  // above tol near a multiple root. The 100x multiplier accounts for accumulated roundoff error.
+  constexpr double residual_acceptance_factor = 100.0;
+  result.converged = result.converged || result.max_residual <= residual_acceptance_factor * tol;
 
   std::sort(result.roots.begin(), result.roots.end(), [](const Complex& lhs, const Complex& rhs) {
     if(lhs.real() != rhs.real())

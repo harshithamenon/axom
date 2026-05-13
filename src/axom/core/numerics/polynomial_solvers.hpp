@@ -111,7 +111,10 @@ axom::Array<std::complex<double>> solve_polynomial_durand_kerner(ArrayView<const
  * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
  * \param [in] tol Iteration tolerance and relative effective-zero threshold
  * used when trimming leading coefficients.
- * \param [in] max_iters Maximum number of Durand-Kerner iterations.
+ * \param [in] max_iters Maximum number of Durand-Kerner iterations. Default is 200,
+ * which provides reliable convergence for well-conditioned polynomials up to degree ~15-20. 
+ * Higher-degree or ill-conditioned polynomials (repeated roots, clustered roots) 
+ * may require more iterations or specialized methods.
  *
  * \return The roots and convergence metadata for the solve.
  */
