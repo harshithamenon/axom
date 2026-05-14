@@ -340,7 +340,6 @@ int main(int argc, char** argv)
     axom::quest::STLReader stl_reader;
     stl_reader.setFileName(input.inputFile);
 
-    axom::utilities::Timer read_timer(true);
     const int ret = stl_reader.read();
 
     if(ret != 0)
@@ -350,7 +349,6 @@ int main(int argc, char** argv)
     }
 
     stl_reader.getMesh(&tri_mesh);
-    read_timer.stop();
 
     BoundingBox3D* shape_bbox_ptr = &shape_bbox;
     axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
@@ -359,10 +357,8 @@ int main(int argc, char** argv)
         shape_bbox_ptr->addPoint(Point3D {x, y, z});
       });
 
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Loaded {} triangles in {:.3Lf} seconds",
-                                stl_reader.getNumFaces(),
-                                read_timer.elapsed()));
+    SLIC_INFO(
+      axom::fmt::format(axom::utilities::locale(), "Loaded {} triangles", stl_reader.getNumFaces()));
   }
   else if(axom::utilities::string::endsWith(input.inputFile, ".step"))
   {
@@ -372,14 +368,12 @@ int main(int argc, char** argv)
     step_reader.setFileName(input.inputFile);
     step_reader.setVerbosity(input.verbose);
 
-    axom::utilities::Timer read_timer(true);
     const int ret = step_reader.read(input.validate);
     if(ret != 0)
     {
       SLIC_ERROR(axom::fmt::format("Failed to read STEP file '{}'", input.inputFile));
       return 1;
     }
-    read_timer.stop();
 
     shape_bbox = step_reader.getBRepBoundingBox();
 
@@ -391,17 +385,13 @@ int main(int argc, char** argv)
 
     SLIC_INFO(step_reader.getBRepStats());
     SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Loaded {} trimmed NURBS patches (with {} trimming curves) in {:.3Lf} seconds",
-      step_reader.numPatches(),
-      num_trimming_curves,
-      read_timer.elapsed()));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Loaded {} trimmed NURBS patches (with {} trimming curves)",
+                                step_reader.numPatches(),
+                                num_trimming_curves));
 
     if(input.triangulate)
     {
-      read_timer.reset();
-      read_timer.start();
       AXOM_ANNOTATE_SCOPE("triangulation");
       const int tc = step_reader.getTriangleMesh(&tri_mesh,
                                                  input.linear_deflection,
@@ -413,16 +403,14 @@ int main(int argc, char** argv)
         SLIC_ERROR("Failed to triangulate STEP geometry.");
         return 1;
       }
-      read_timer.stop();
 
       SLIC_INFO(
         axom::fmt::format(axom::utilities::locale(),
                           "Triangulated geometry with deflection {} and angular deflection {}"
-                          " containing {:L} triangles in {:.3Lf} seconds",
+                          " containing {:L} triangles",
                           input.linear_deflection,
                           input.angular_deflection,
-                          tri_mesh.getNumberOfCells(),
-                          read_timer.elapsed()));
+                          tri_mesh.getNumberOfCells()));
     }
     else
     {

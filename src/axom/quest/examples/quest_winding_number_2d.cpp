@@ -522,7 +522,6 @@ int main(int argc, char** argv)
   {
     AXOM_ANNOTATE_SCOPE("linearization");
 
-    axom::utilities::Timer timer(true);
     axom::quest::LinearizeCurves lc;
     if(input.useUniformLinearization)
     {
@@ -532,7 +531,6 @@ int main(int argc, char** argv)
     {
       lc.getLinearMeshNonUniform(curves.view(), &poly_mesh, input.percentError);
     }
-    timer.stop();
 
     SLIC_INFO(axom::fmt::format(
       axom::utilities::locale(),
@@ -540,8 +538,6 @@ int main(int argc, char** argv)
       curves.size(),
       input.segmentsPerKnotSpan,
       poly_mesh.getNumberOfCells()));
-    SLIC_INFO(
-      axom::fmt::format("Preprocessing stage (linearization): {} s", timer.elapsedTimeInSec()));
   }
 
   // Early return if user didn't set up a query mesh

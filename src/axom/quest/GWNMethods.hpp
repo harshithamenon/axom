@@ -154,29 +154,17 @@ public:
       return;
     }
 
-    axom::utilities::Timer timer(true);
-    axom::utilities::Timer stage_timer(false);
-
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
     if(!use_direct_eval)
     {
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("subdivision");
         constexpr double subdivision_bbox_threshold = 0.1;
         m_subdivided_curves = subdivide_curves(m_input_curves_view, subdivision_bbox_threshold);
         m_processed_curves_view = m_subdivided_curves.view();
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (subdivision {} -> {}): {} s",
-                                  m_input_curves_view.size(),
-                                  m_processed_curves_view.size(),
-                                  stage_timer.elapsedTimeInSec()));
 
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_initialization");
         const int ncurves = m_processed_curves_view.size();
@@ -190,12 +178,7 @@ public:
           });
         m_bvh.initialize(aabbs_view, ncurves);
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (bvh initialization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
 
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
         auto compute_moments = [=](std::int32_t currentNode,
@@ -207,9 +190,6 @@ public:
         const auto traverser = m_bvh.getTraverser();
         m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
-                                  stage_timer.elapsedTimeInSec()));
     }
     else
     {
@@ -219,23 +199,9 @@ public:
 
     if(use_memoization)
     {
-      stage_timer.reset();
-      stage_timer.start();
-      {
-        AXOM_ANNOTATE_SCOPE("cache_initialization");
-        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_curves_view);
-      }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
+      AXOM_ANNOTATE_SCOPE("cache_initialization");
+      m_nurbs_cache_mgr = NURBSCacheManager(m_processed_curves_view);
     }
-
-    timer.stop();
-    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("NURBSCurve query preprocessing (loading curves{}{}): {} s",
-                                use_memoization ? " and caches" : "",
-                                !use_direct_eval ? " and bvh" : "",
-                                timer.elapsedTimeInSec()));
   }
 
   /*!
@@ -271,7 +237,6 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
@@ -344,22 +309,6 @@ public:
         }
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Querying {:L} samples in winding number field via {} with{} memoization took {:.3Lf} seconds"
-      " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
-      num_query_points,
-      m_bvh.isInitialized() ? "fast approximation" : "direct evaluation",
-      m_nurbs_cache_mgr.empty() ? "out" : "",
-      query_time_s,
-      num_query_points / query_time_s,
-      ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
@@ -399,12 +348,8 @@ public:
       return;
     }
 
-    axom::utilities::Timer timer(true);
-    axom::utilities::Timer stage_timer(false);
-
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    stage_timer.start();
     {
       AXOM_ANNOTATE_SCOPE("extract_segments");
 
@@ -420,15 +365,10 @@ public:
             SegmentType {Point2D {coords(0, 0), coords(1, 0)}, Point2D {coords(0, 1), coords(1, 1)}};
         });
     }
-    stage_timer.stop();
-    SLIC_INFO(axom::fmt::format("  Preprocessing stage (segment extraction): {} s",
-                                stage_timer.elapsedTimeInSec()));
 
     // If direct evaluation is preferred, skip BVH initialization
     if(!use_direct_eval)
     {
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_initialization");
         const int nlines = m_segments.size();
@@ -443,12 +383,7 @@ public:
           });
         m_bvh.initialize(aabbs_view, nlines);
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (bvh initialization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
 
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
         const auto segments_view = m_segments.view();
@@ -462,16 +397,7 @@ public:
         const auto traverser = m_bvh.getTraverser();
         m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
-                                  stage_timer.elapsedTimeInSec()));
     }
-
-    timer.stop();
-    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("Polyline preprocessing (loading segments{}): {} s",
-                                !use_direct_eval ? " and bvh" : "",
-                                timer.elapsedTimeInSec()));
   }
 
   /*!
@@ -507,7 +433,6 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
 
@@ -547,19 +472,6 @@ public:
         });
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
-                                num_query_points,
-                                query_time_s,
-                                num_query_points / query_time_s,
-                                ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
@@ -605,29 +517,17 @@ public:
     axom::Array<primal::Vector<double, 3>> precomputed_normals {};
     axom::Array<double> precomputed_surface_areas {};
 
-    axom::utilities::Timer timer(true);
-    axom::utilities::Timer stage_timer(false);
-
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
     if(!use_direct_eval)
     {
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("subdivision");
         constexpr double subdivision_bbox_threshold = 0.1;
         m_subdivided_patches = subdivide_patches(m_input_patches_view, subdivision_bbox_threshold);
         m_processed_patches_view = m_subdivided_patches.view();
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (subdivision {} -> {}): {} s",
-                                  m_input_patches_view.size(),
-                                  m_processed_patches_view.size(),
-                                  stage_timer.elapsedTimeInSec()));
 
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_initialization");
         const int npatches = m_processed_patches_view.size();
@@ -641,12 +541,7 @@ public:
           });
         m_bvh.initialize(aabbs_view, npatches);
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (bvh initialization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
 
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
         precomputed_normals.resize(m_processed_patches_view.size());
@@ -668,9 +563,6 @@ public:
         const auto traverser = m_bvh.getTraverser();
         m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
-                                  stage_timer.elapsedTimeInSec()));
     }
     else
     {
@@ -691,27 +583,13 @@ public:
 
     if(use_memoization)
     {
-      stage_timer.reset();
-      stage_timer.start();
-      {
         AXOM_ANNOTATE_SCOPE("cache_initialization");
 
         // If internal moments are already allocated, then normals are already precomputed
         m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view,
                                               precomputed_normals.view(),
                                               precomputed_surface_areas.view());
-      }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
     }
-
-    timer.stop();
-    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("NURBSPatch query preprocessing (loading patches{}{}): {} s",
-                                use_memoization ? " and caches" : "",
-                                !use_direct_eval ? " and bvh" : "",
-                                timer.elapsedTimeInSec()));
   }
 
   /*!
@@ -749,7 +627,6 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
@@ -837,22 +714,6 @@ public:
         }
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Querying {:L} samples in winding number field via {} with{} memoization took {:.3Lf} seconds"
-      " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
-      num_query_points,
-      m_bvh.isInitialized() ? "fast approximation" : "direct evaluation",
-      m_nurbs_cache_mgr.empty() ? "out" : "",
-      query_time_s,
-      num_query_points / query_time_s,
-      ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
@@ -884,9 +745,6 @@ public:
   ///    If fast-approximation is used, construct BVH
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh, bool useDirectEval)
   {
-    axom::utilities::Timer timer(true);
-    axom::utilities::Timer stage_timer(false);
-
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
     const auto ntris = tri_mesh->getNumberOfCells();
@@ -896,7 +754,6 @@ public:
       return;
     }
 
-    stage_timer.start();
     {
       AXOM_ANNOTATE_SCOPE("extract_triangles");
 
@@ -937,15 +794,10 @@ public:
                                    (coords(2, 2) - shape_center[2]) / scale}};
         });
     }
-    stage_timer.stop();
-    SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_triangles): {} s",
-                                stage_timer.elapsedTimeInSec()));
 
     // If direct evaluation is preferred, skip BVH initialization
     if(!useDirectEval)
     {
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_init");
         axom::Array<BoxType> aabbs(ntris, ntris);
@@ -960,12 +812,7 @@ public:
           });
         m_bvh.initialize(aabbs_view, ntris);
       }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
-
-      stage_timer.reset();
-      stage_timer.start();
+ 
       {
         AXOM_ANNOTATE_SCOPE("moments");
         const auto triangles_view = m_triangles.view();
@@ -979,14 +826,9 @@ public:
         const auto traverser = m_bvh.getTraverser();
         m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
     }
-    timer.stop();
-
-    SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
+
   /*!
    * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh
    *
@@ -1028,7 +870,6 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
 
@@ -1068,19 +909,6 @@ public:
         });
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
-                                num_query_points,
-                                query_time_s,
-                                num_query_points / query_time_s,
-                                ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
