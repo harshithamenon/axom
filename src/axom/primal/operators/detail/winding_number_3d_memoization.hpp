@@ -163,7 +163,7 @@ public:
       // In a GWN context, the surface has been sufficiently subdivided to
       //  make additional bezier extraction redundant
       const auto normal_area =
-        m_alteredPatch.calculateTrimmedPatchNormalArea(/*npts*/ 20, /*useBezierExtraction*/ false);
+        m_alteredPatch.calculateTrimmedPatchNormalArea(/*npts*/ 10, /*useBezierExtraction*/ false);
 
       m_surfaceArea = normal_area.second;
       if(m_surfaceArea <= 0.0)
@@ -359,7 +359,7 @@ public:
       m_nurbs_caches.push_back(NURBSCache(patch, mustComputeNormal));
     }
 
-    // If we didn't comptue normals in NURBSCache constructor,
+    // If we didn't compute normals in NURBSCache constructor,
     //  need to use precomputed values
     if(!mustComputeNormal)
     {

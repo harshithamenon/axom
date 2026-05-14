@@ -129,7 +129,8 @@ public:
   /// Construct moments from a trimmed NURBS surface
   explicit GWNMomentData(const axom::primal::NURBSPatch<T, 3>& a_patch)
   {
-    const auto patch_data = a_patch.template calculateSurfaceMoments<ORD>();
+    const auto patch_data =
+      a_patch.template calculateSurfaceMoments<ORD>(/*npts*/ 10, /*useBezierExtraction*/ false);
 
     a = patch_data[0];
     ap[0] = patch_data[1];

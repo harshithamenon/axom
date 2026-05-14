@@ -3937,9 +3937,10 @@ public:
   /*!
    * \brief Split the patch in the longer parametric direction, determined via maximum control-net polyline length.
    *
-   * Rather than calculating It measures the maximum polyline length of the control net in each parametric direction:
+   * We measure the maximum polyline length of the control net in each parametric direction,
    * - u-length: max over segments ||P(i+1,j) - P(i,j)||
    * - v-length: max over segments ||P(i,j+1) - P(i,j)||
+   * and split along the direction with the larger maximum. This approximates the geometric stretch along that axis.
    * 
    * \note This heuristic considers only control points (and ignores weights for rational patches).
    */
