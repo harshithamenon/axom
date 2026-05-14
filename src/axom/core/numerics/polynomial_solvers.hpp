@@ -11,6 +11,7 @@
 #include "axom/core/ArrayView.hpp"
 
 #include <complex>
+#include <type_traits>
 
 /*!
  * \file polynomial_solve.hpp
@@ -44,6 +45,10 @@ namespace numerics
 template <typename ScalarType>
 ScalarType evaluate_polynomial(ArrayView<const double> coeffs_descending, const ScalarType& x)
 {
+  static_assert(
+    std::is_same_v<ScalarType, double> || std::is_same_v<ScalarType, std::complex<double>>,
+    "evaluate_polynomial requires ScalarType to be double or std::complex<double>.");
+
   ScalarType value {0.0};
   for(double coeff : coeffs_descending)
   {
