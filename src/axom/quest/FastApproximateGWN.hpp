@@ -489,6 +489,8 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
  * \param [in] input_curves_view A const view to the const NURBS input curves
  * \param [in] bbox_threshold The maximum AABB diagonal of each subdivided curve,
  *               as a percent of an AABB of the entire input shape
+ * \param [in] max_curves The maximum number of curves after which further curves
+ *               will not be subdivided
  * \param [in] npasses The maximum number of passes through the input curves before
  *               an early return
  * 
@@ -503,6 +505,7 @@ template <typename T>
 axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
   const axom::ArrayView<const primal::NURBSCurve<T, 2>>& input_curves_view,
   double bbox_threshold,
+  int max_curves = 1e6,
   int npasses = 10)
 {
   using BoxType = primal::BoundingBox<T, 2>;
@@ -510,7 +513,7 @@ axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
   using BezierType = primal::BezierCurve<T, 2>;
 
   // Compute a bounding box of all the curves
-  axom::Array<BezierType> candidates;
+  axom::Array<BezierType> candidates, subdivisions;
   BoxType total_bbox;
 
   // For NURBSCurves, first do a pass of Bezier extraction
@@ -523,21 +526,29 @@ axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
     }
   }
 
+  SLIC_WARNING_IF(
+    candidates.size() >= max_curves,
+    "quest::subdivide_curves: Number of bezier extracted input curves exceeds given maximum");
+
   // Iterate over all the curves until none have a bounding box
   //  bigger than threshold * (total_bbox's size)
-  for(int i = 0; i < npasses; ++i)
+  for(int i = 0; i < npasses && candidates.size() < max_curves; ++i)
   {
-    axom::Array<BezierType> subdivisions;
-    subdivisions.reserve(candidates.size() * 3 / 2);
-
+    subdivisions.clear();
     BoxType new_bbox;
 
     // If any patch is bigger than the threshold, subdivide it,
     //  and add it to the next level. Repeat as needed.
     const double max_range_norm = bbox_threshold * total_bbox.range().norm();
-    for(const auto& candidate : candidates)
+    for(int j = 0; j < candidates.size(); ++j)
     {
-      if(candidate.boundingBox().range().norm() < max_range_norm)
+      const auto& candidate = candidates[j];
+      const int remaining = candidates.size() - j - 1;
+
+      // Skip the bisect if the surface is already below the threshold,
+      //  or if doind the subdivision will put us above the maximum patch cound
+      if(candidate.boundingBox().range().norm() < max_range_norm ||
+         subdivisions.size() + 2 + remaining > max_curves)
       {
         new_bbox.addBox(candidate.boundingBox());
         subdivisions.push_back(candidate);
@@ -558,6 +569,13 @@ axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
 
     candidates.swap(subdivisions);
     total_bbox = new_bbox;
+
+    // Break if over the maximum number of surfaces
+    if(candidates.size() >= max_curves)
+    {
+      SLIC_WARNING("quest::subdivide_curves: Number of subdivided curves exceeds given maximum");
+      break;
+    }
   }
 
   // Do one final pass to turn the array of candidates into NURBS
@@ -576,6 +594,8 @@ axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
  * \param [in] input_patches_view A const view to the const NURBS input surfaces
  * \param [in] bbox_threshold The maximum AABB diagonal of each subdivided surface,
  *               as a percent of an AABB of the entire input shape
+ * \param [in] max_patches The maximum number of surfaces before additional surfaces
+ *               will not be subdivided
  * \param [in] npasses The maximum number of passes through the input surfaces before
  *               an early return
  * 
@@ -591,12 +611,13 @@ template <typename T>
 axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
   const axom::ArrayView<const primal::NURBSPatch<T, 3>>& input_patches_view,
   double bbox_threshold,
+  int max_patches = 1e5,
   int npasses = 10)
 {
   using BoxType = primal::BoundingBox<T, 3>;
   using NURBSType = primal::NURBSPatch<T, 3>;
 
-  axom::Array<NURBSType> candidates;
+  axom::Array<NURBSType> candidates, subdivisions;
   candidates.reserve(input_patches_view.size());
   BoxType total_bbox;
 
@@ -620,21 +641,31 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
     total_bbox.addBox(the_patch.boundingBox());
   }
 
+  if(candidates.size() >= max_patches)
+  {
+    SLIC_WARNING("quest::subdivide_patches: Number of input patches exceeds given maximum");
+    return candidates;
+  }
+
   // Iterate over all the surfaces until no patch has a bounding box
   //  bigger than threshold * (total_bbox's size)
   for(int i = 0; i < npasses; ++i)
   {
-    axom::Array<NURBSType> subdivisions;
-    subdivisions.reserve(candidates.size());
-
+    subdivisions.clear();
     BoxType new_bbox;
 
     // If any patch is bigger than the threshold, subdivide it, clip it,
     //  and add it to the next level. Repeat as needed.
     const double max_range_norm = bbox_threshold * total_bbox.range().norm();
-    for(const auto& candidate : candidates)
+    for(int j = 0; j < candidates.size(); ++j)
     {
-      if(candidate.boundingBox().range().norm() < max_range_norm)
+      const auto& candidate = candidates[j];
+      const int remaining = candidates.size() - j - 1;
+
+      // Skip the bisect if the surface is already below the threshold,
+      //  or if doind the subdivision will put us above the maximum patch cound
+      if(candidate.boundingBox().range().norm() < max_range_norm ||
+         subdivisions.size() + 2 + remaining > max_patches)
       {
         new_bbox.addBox(candidate.boundingBox());
         subdivisions.push_back(candidate);
@@ -659,14 +690,10 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
     candidates.swap(subdivisions);
     total_bbox = new_bbox;
 
-    // Break if over 100,000 surfaces
-    if(candidates.size() > 1e5)
+    // Break if over the maximum number of surfaces
+    if(candidates.size() >= max_patches)
     {
-      std::cout << axom::fmt::format("Excessive subdivision recorded after {} passes! ({} -> {})",
-                                     i,
-                                     input_patches_view.size(),
-                                     candidates.size())
-                << std::endl;
+      SLIC_WARNING("quest::subdivide_patches: Number of subdivided patches exceeds given maximum");
       break;
     }
   }

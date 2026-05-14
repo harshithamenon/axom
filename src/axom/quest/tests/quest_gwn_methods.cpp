@@ -155,7 +155,7 @@ TEST(quest_gwn_methods, gwn_moment_data_triangle)
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void check_mfem_mesh_linearization()
+void check_mfem_mesh_evaluation()
 {
   using NURBSCurve2D = axom::primal::NURBSCurve<double, 2>;
   const std::string fileName = pjoin(AXOM_DATA_DIR, "contours", "svg", "mfem_logo_simp.mesh");
@@ -168,7 +168,7 @@ void check_mfem_mesh_linearization()
   const int ret = mfem_reader.read(curves);
   if(ret != 0)
   {
-    SLIC_ERROR(axom::fmt::format("Failed to read STEP file '{}'", fileName));
+    SLIC_ERROR(axom::fmt::format("Failed to read mesh file '{}'", fileName));
   }
 
   // Get a linearization of the shape
@@ -252,32 +252,12 @@ void check_mfem_mesh_linearization()
       EXPECT_EQ(inout_direct[i], inout_other[i]);
     }
   }
-
-  mfem::VisItDataCollection windingDC_0("winding_0", dc[0].GetMesh());
-  windingDC_0.RegisterField("winding", dc[0].GetField("winding"));
-  windingDC_0.RegisterField("inout", dc[0].GetField("inout"));
-  windingDC_0.Save();
-
-  mfem::VisItDataCollection windingDC_1("winding_1", dc[1].GetMesh());
-  windingDC_1.RegisterField("winding", dc[1].GetField("winding"));
-  windingDC_1.RegisterField("inout", dc[1].GetField("inout"));
-  windingDC_1.Save();
-
-  mfem::VisItDataCollection windingDC_2("winding_2", dc[2].GetMesh());
-  windingDC_2.RegisterField("winding", dc[2].GetField("winding"));
-  windingDC_2.RegisterField("inout", dc[2].GetField("inout"));
-  windingDC_2.Save();
-
-  mfem::VisItDataCollection windingDC_3("winding_3", dc[3].GetMesh());
-  windingDC_3.RegisterField("winding", dc[3].GetField("winding"));
-  windingDC_3.RegisterField("inout", dc[3].GetField("inout"));
-  windingDC_3.Save();
 }
 
 #ifdef AXOM_USE_OPENCASCADE
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void check_step_file_triangulation()
+void check_step_file_evaluation()
 {
   const std::string fileName = pjoin(AXOM_DATA_DIR, "quest", "step", "nut.step");
 
@@ -376,30 +356,18 @@ void check_step_file_triangulation()
 #endif
 
 //------------------------------------------------------------------------------
-TEST(quest_gwn_methods, mfem_mesh_linearization)
-{
-  check_mfem_mesh_linearization<axom::SEQ_EXEC>();
-}
+TEST(quest_gwn_methods, mfem_mesh_evaluation) { check_mfem_mesh_evaluation<axom::SEQ_EXEC>(); }
 
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-TEST(quest_gwn_methods, mfem_mesh_linearization_omp)
-{
-  check_mfem_mesh_linearization<axom::OMP_EXEC>();
-}
+TEST(quest_gwn_methods, mfem_mesh_evaluation_omp) { check_mfem_mesh_evaluation<axom::OMP_EXEC>(); }
 #endif
 
 #ifdef AXOM_USE_OPENCASCADE
-TEST(quest_gwn_methods, step_file_triangulation)
-{
-  check_step_file_triangulation<axom::SEQ_EXEC>();
-}
+TEST(quest_gwn_methods, step_file_evaluation) { check_step_file_evaluation<axom::SEQ_EXEC>(); }
 #endif
 
 #if defined(AXOM_USE_OPENCASCADE) && defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-TEST(quest_gwn_methods, step_file_triangulation_omp)
-{
-  check_step_file_triangulation<axom::OMP_EXEC>();
-}
+TEST(quest_gwn_methods, step_file_evaluation_omp) { check_step_file_evaluation<axom::OMP_EXEC>(); }
 #endif
 
 //------------------------------------------------------------------------------

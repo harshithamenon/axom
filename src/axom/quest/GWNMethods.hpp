@@ -155,6 +155,24 @@ public:
 
   NURBSCurveGWNQuery() = default;
 
+  ///@{
+  /// \name Setters for misc algorithm parameters
+  void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
+  {
+    m_subdivision_bbox_threshold = subdivision_bbox_threshold;
+  }
+
+  void setSubdivisionMaxPasses(int subdivision_max_passes)
+  {
+    m_subdivision_max_passes = subdivision_max_passes;
+  }
+
+  void setSubdivisionMaxNumCurves(int subdivision_max_curves)
+  {
+    m_subdivision_max_curves = subdivision_max_curves;
+  }
+  ///@}
+
   /*!
    * \brief Process input curves, optionally building a BVH
    *
@@ -179,8 +197,10 @@ public:
     {
       {
         AXOM_ANNOTATE_SCOPE("subdivision");
-        constexpr double subdivision_bbox_threshold = 0.1;
-        m_subdivided_curves = subdivide_curves(m_input_curves_view, subdivision_bbox_threshold);
+        m_subdivided_curves = subdivide_curves(m_input_curves_view,
+                                               m_subdivision_bbox_threshold,
+                                               m_subdivision_max_curves,
+                                               m_subdivision_max_passes);
         m_processed_curves_view = m_subdivided_curves.view();
       }
 
@@ -342,6 +362,11 @@ private:
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
   axom::spin::BVH<2, ExecSpace> m_bvh;
+
+  // Additional algorithm parameters
+  double m_subdivision_bbox_threshold {1.0};
+  int m_subdivision_max_passes {10};
+  int m_subdivision_max_curves {1000000};
 };
 
 /*!
@@ -550,6 +575,24 @@ public:
 
   NURBSPatchGWNQuery() = default;
 
+  ///@{
+  /// \name Setters for misc algorithm parameters
+  void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
+  {
+    m_subdivision_bbox_threshold = subdivision_bbox_threshold;
+  }
+
+  void setSubdivisionMaxPasses(int subdivision_max_passes)
+  {
+    m_subdivision_max_passes = subdivision_max_passes;
+  }
+
+  void setSubdivisionMaxNumPatches(int subdivision_max_patches)
+  {
+    m_subdivision_max_patches = subdivision_max_patches;
+  }
+  ///@}
+
   /*!
    * \brief Process input patches, optionally building a BVH
    *
@@ -583,8 +626,10 @@ public:
     {
       {
         AXOM_ANNOTATE_SCOPE("subdivision");
-        constexpr double subdivision_bbox_threshold = 0.1;
-        m_subdivided_patches = subdivide_patches(m_input_patches_view, subdivision_bbox_threshold);
+        m_subdivided_patches = subdivide_patches(m_input_patches_view,
+                                                 m_subdivision_bbox_threshold,
+                                                 m_subdivision_max_patches,
+                                                 m_subdivision_max_passes);
         m_processed_patches_view = m_subdivided_patches.view();
       }
 
@@ -788,6 +833,11 @@ private:
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
   axom::spin::BVH<3, ExecSpace> m_bvh;
+
+  // Additional algorithm parameters
+  double m_subdivision_bbox_threshold {1.0};
+  int m_subdivision_max_passes {10};
+  int m_subdivision_max_patches {10000};
 };
 
 /*!
