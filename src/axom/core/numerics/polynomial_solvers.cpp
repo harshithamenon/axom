@@ -69,7 +69,8 @@ int effective_polynomial_degree(ArrayView<const double> coeffs_ascending, double
 //------------------------------------------------------------------------------
 PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const double> coeffs_ascending,
                                                             double tol,
-                                                            int max_iters)
+                                                            int max_iters,
+                                                            Complex seed)
 {
   PolynomialRootResult result;
   const int degree = static_cast<int>(coeffs_ascending.size()) - 1;
@@ -103,11 +104,12 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
   }
 
   result.roots.resize(effective_degree);
-  // Powers of this non-real base with magnitude around 1 give deterministic, distinct initial guesses.
-  const Complex seed_center {0.4, 0.9};
+  // Powers of a non-real base with magnitude around 1 give deterministic, distinct initial guesses.
+  // The seed should be a complex number on or near the unit circle so that the initial guesses
+  // are neither too large nor too small.
   for(int i = 0; i < effective_degree; ++i)
   {
-    result.roots[i] = std::pow(seed_center, i + 1);
+    result.roots[i] = std::pow(seed, i + 1);
   }
 
   // Each sweep updates every root estimate by subtracting p(z_i) divided by
@@ -172,9 +174,10 @@ PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const doub
 
 //------------------------------------------------------------------------------
 axom::Array<Complex> solve_polynomial_durand_kerner(ArrayView<const double> coeffs_ascending,
-                                                    double tol)
+                                                    double tol,
+                                                    Complex seed)
 {
-  const auto result = solve_polynomial_durand_kerner_checked(coeffs_ascending, tol);
+  const auto result = solve_polynomial_durand_kerner_checked(coeffs_ascending, tol, 200, seed);
   return result.converged ? result.roots : axom::Array<Complex> {};
 }
 

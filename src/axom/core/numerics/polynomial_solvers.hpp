@@ -102,12 +102,17 @@ struct PolynomialRootResult
  * \param [in] coeffs_ascending Polynomial coefficients in ascending power order.
  * \param [in] tol Iteration tolerance and relative effective-zero threshold
  * used when trimming leading coefficients.
+ * \param [in] seed Seed used to generate deterministic, distinct initial guesses.
+ * This should be a complex number on or near the unit circle (and not purely real),
+ * so that `seed^(i+1)` spreads the starting points around a reasonable radius.
  *
  * \return The polynomial roots, sorted by real part and then imaginary part,
  * or an empty array if the iteration does not converge.
  */
-axom::Array<std::complex<double>> solve_polynomial_durand_kerner(ArrayView<const double> coeffs_ascending,
-                                                                 double tol = 1e-12);
+axom::Array<std::complex<double>> solve_polynomial_durand_kerner(
+  ArrayView<const double> coeffs_ascending,
+  double tol = 1e-12,
+  std::complex<double> seed = std::complex<double> {0.4, 0.9});
 
 /*!
  * \brief Approximate all roots of a polynomial using the Durand-Kerner method,
@@ -120,12 +125,17 @@ axom::Array<std::complex<double>> solve_polynomial_durand_kerner(ArrayView<const
  * which provides reliable convergence for well-conditioned polynomials up to degree ~15-20. 
  * Higher-degree or ill-conditioned polynomials (repeated roots, clustered roots) 
  * may require more iterations or specialized methods.
+ * \param [in] seed Seed used to generate deterministic, distinct initial guesses.
+ * This should be a complex number on or near the unit circle (and not purely real),
+ * so that `seed^(i+1)` spreads the starting points around a reasonable radius.
  *
  * \return The roots and convergence metadata for the solve.
  */
-PolynomialRootResult solve_polynomial_durand_kerner_checked(ArrayView<const double> coeffs_ascending,
-                                                            double tol = 1e-12,
-                                                            int max_iters = 200);
+PolynomialRootResult solve_polynomial_durand_kerner_checked(
+  ArrayView<const double> coeffs_ascending,
+  double tol = 1e-12,
+  int max_iters = 200,
+  std::complex<double> seed = std::complex<double> {0.4, 0.9});
 
 /*!
  * \brief Find the real root for a linear equation of form \f$ ax + b = 0 \f$.
