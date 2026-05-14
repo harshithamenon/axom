@@ -128,6 +128,20 @@ void generate_gwn_query_mesh(mfem::DataCollection& dc,
 ///@{
 /// \name Query methods for 2D GWN applications
 
+/*!
+ * \class NURBSCurveGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses NURBSCurve geoemtry for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done curve-by-curve.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ *  `use_memoization` : Caches and re-uses subdivision data for curve evaluations
+ */
 template <typename ExecSpace, int ORDER = 2>
 class NURBSCurveGWNQuery
 {
@@ -141,8 +155,13 @@ public:
 
   NURBSCurveGWNQuery() = default;
 
-  /// \brief Define view for NURBS data.
-  ///    If memoization is used, allocate a cache for each curve.
+  /*!
+   * \brief Process input curves, optionally building a BVH
+   *
+   * \param [in] input_curves A view to the input curves
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   * \param [in] use_memoization If true, allocate a per-thread cache for each curve
+   */
   void preprocess(const CurveArrayType& input_curves,
                   bool use_direct_eval = false,
                   bool use_memoization = true)
@@ -325,6 +344,19 @@ private:
   axom::spin::BVH<2, ExecSpace> m_bvh;
 };
 
+/*!
+ * \class PolylineGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses a linear mesh for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done segment-by-segment.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ */
 template <typename ExecSpace, int ORDER = 2>
 class PolylineGWNQuery
 {
@@ -337,8 +369,12 @@ public:
 
   PolylineGWNQuery() = default;
 
-  /// \brief Load polyline data into primal::Segments.
-  ///    If fast-approximation is used, construct BVH
+  /*!
+   * \brief Process mint::mesh into axom::Segments, optionally building a BVH
+   *
+   * \param [in] poly_mesh The input mesh
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   */
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
                   bool use_direct_eval)
   {
@@ -487,6 +523,20 @@ private:
 ///@{
 /// \name Query methods for 3D GWN applications
 
+/*!
+ * \class NURBSPatchGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses NURBSPatch geoemtry for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done patch-by-patch.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ *  `use_memoization` : Caches and re-uses trimming curve quadrature data for patch evaluation
+ */
 template <typename ExecSpace, int ORDER = 2>
 class NURBSPatchGWNQuery
 {
@@ -500,8 +550,18 @@ public:
 
   NURBSPatchGWNQuery() = default;
 
-  /// \brief Define view for NURBS data.
-  ///    If memoization is used, allocate a cache for each patch.
+  /*!
+   * \brief Process input patches, optionally building a BVH
+   *
+   * Processing involves "cleaning" input surfaces for more robust GWN evaluation by 
+   *  - Normalizing the parameter space of each surface according to the number of knot spans
+   *  - Ensuring each input is represented as a trimmed surface
+   *  - Clipping the parameter space of each surface to the visible (i.e. trimmed) portion 
+   * 
+   * \param [in] input_patches A view to the input trimmed NURBS surfaces
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   * \param [in] use_memoization If true, allocate a per-thread cache for each patch
+   */
   void preprocess(const PatchArrayType& input_patches,
                   bool use_direct_eval = false,
                   bool use_memoization = true)
@@ -583,12 +643,12 @@ public:
 
     if(use_memoization)
     {
-        AXOM_ANNOTATE_SCOPE("cache_initialization");
+      AXOM_ANNOTATE_SCOPE("cache_initialization");
 
-        // If internal moments are already allocated, then normals are already precomputed
-        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view,
-                                              precomputed_normals.view(),
-                                              precomputed_surface_areas.view());
+      // If internal moments are already allocated, then normals are already precomputed
+      m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view,
+                                            precomputed_normals.view(),
+                                            precomputed_surface_areas.view());
     }
   }
 
@@ -730,6 +790,19 @@ private:
   axom::spin::BVH<3, ExecSpace> m_bvh;
 };
 
+/*!
+ * \class TriangleGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses a triangle mesh for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done triangle-by-triangle.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ */
 template <typename ExecSpace, int ORDER = 2>
 class TriangleGWNQuery
 {
@@ -741,9 +814,14 @@ public:
 
   TriangleGWNQuery() = default;
 
-  /// \brief Load mesh data into primal::Triangles.
-  ///    If fast-approximation is used, construct BVH
-  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh, bool useDirectEval)
+  /*!
+   * \brief Load triangles from mint::mesh to primal::Triangles, optionally building a BVH
+   *
+   * \param [in] tri_mesh The input mesh
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   */
+  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh,
+                  bool use_direct_eval)
   {
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
@@ -796,7 +874,7 @@ public:
     }
 
     // If direct evaluation is preferred, skip BVH initialization
-    if(!useDirectEval)
+    if(!use_direct_eval)
     {
       {
         AXOM_ANNOTATE_SCOPE("bvh_init");
@@ -812,7 +890,7 @@ public:
           });
         m_bvh.initialize(aabbs_view, ntris);
       }
- 
+
       {
         AXOM_ANNOTATE_SCOPE("moments");
         const auto triangles_view = m_triangles.view();
