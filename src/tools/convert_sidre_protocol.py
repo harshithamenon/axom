@@ -79,20 +79,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def iter_views(group: pysidre.Group):
-    idx = group.getFirstValidViewIndex()
-    while pysidre.indexIsValid(idx):
-        yield group.getView(idx)
-        idx = group.getNextValidViewIndex(idx)
-
-
-def iter_groups(group: pysidre.Group):
-    idx = group.getFirstValidGroupIndex()
-    while pysidre.indexIsValid(idx):
-        yield group.getGroup(idx)
-        idx = group.getNextValidGroupIndex(idx)
-
-
 #
 # Allocate storage for external data of the input datastore.
 #
@@ -104,7 +90,7 @@ def iter_groups(group: pysidre.Group):
 #
 def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verbose: bool) -> None:
     # for each view
-    for view in iter_views(group):
+    for view in group.views():
         if view.isExternal():
             if verbose:
                 print(
@@ -115,7 +101,7 @@ def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verb
             holders.append(storage)
 
     # for each group
-    for child in iter_groups(group):
+    for child in group.groups():
         allocate_external_data(child, holders, verbose)
 
 
@@ -181,7 +167,7 @@ def modify_final_values(
 #
 def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> None:
     # for each view
-    for view in iter_views(group):
+    for view in group.views():
         is_array = view.hasBuffer() or view.isExternal()
 
         if is_array:
@@ -201,7 +187,7 @@ def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> No
             modify_final_values(view, original_size, retained_size)
 
     # for each group
-    for child in iter_groups(group):
+    for child in group.groups():
         truncate_bulk_data(child, max_size, verbose)
 
 
@@ -223,14 +209,42 @@ def main() -> int:
         MPI.Init()
         initialized_mpi = True
 
+    comm_size = MPI.COMM_WORLD.Get_size()
+
     input_path = Path(args.input)
     manager = pysidre.IOManager()
     datastore = pysidre.DataStore()
     root = datastore.getRoot()
 
+    num_files = manager.getNumFilesFromRoot(str(input_path))
+    num_groups = manager.getNumGroupsFromRoot(str(input_path))
+
+    print(
+        "Input datastore layout: "
+        f"{num_groups} rank group(s) across {num_files} file(s); "
+        f"running on {comm_size} MPI rank(s)", )
+
+    if comm_size != num_groups:
+        print(
+            "Warning: current MPI size does not match the input datastore rank count. "
+            "sidre_hdf5 supports some rank-count mismatches, but not every layout.", )
+        if comm_size < num_groups and num_files != num_groups:
+            print(
+                "Warning: this run has fewer MPI ranks than the input datastore. "
+                "Sidre only supports that case for file-per-rank sidre_hdf5 datasets "
+                f"(number_of_files == number_of_trees, but here {num_files} != {num_groups}), "
+                "so IOManager.read() is expected to fail.", )
+        elif comm_size < num_groups:
+            print(
+                "Warning: this run has fewer MPI ranks than the input datastore, but the "
+                "dataset is file-per-rank "
+                f"({num_files} file(s) for {num_groups} rank group(s)), so Sidre can load it. "
+                "In that reduced-rank case, one output rank may absorb data from multiple input "
+                "ranks, and the loaded hierarchy may be reshaped under "
+                "'rank_%07d/sidre_input' groups.", )
+
     print(f"Loading datastore from {input_path}")
     manager.read(root, str(input_path))
-    num_files = manager.getNumFilesFromRoot(str(input_path))
 
     print("Loading external data from datastore")
     external_holders: list[np.ndarray] = []
