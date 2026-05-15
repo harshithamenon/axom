@@ -429,7 +429,7 @@ public:
     nurbs_caches_view[0].resize(patches.size());
     axom::for_all<axom::OMP_EXEC>(
       patches.size(),
-      AXOM_LAMBDA(axom::IndexType i) {
+      AXOM_HOST_LAMBDA(axom::IndexType i) {
         nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
       });
 
@@ -439,7 +439,7 @@ public:
     {
       axom::for_all<axom::OMP_EXEC>(
         patches.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
+        AXOM_HOST_LAMBDA(axom::IndexType i) {
           nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
         });
     }
