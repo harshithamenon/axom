@@ -29,7 +29,6 @@ import math
 from pathlib import Path
 
 import numpy as np
-from mpi4py import MPI
 import pysidre
 
 VALID_PROTOCOLS = (
@@ -211,6 +210,13 @@ def main() -> int:
 
     if not pysidre.AXOM_ENABLE_MPI:
         raise RuntimeError("pysidre.IOManager bindings require an MPI-enabled Axom build")
+
+    try:
+        from mpi4py import MPI
+    except ImportError as exc:
+        raise RuntimeError(
+            "convert_sidre_protocol.py requires mpi4py when Axom is built with MPI support",
+        ) from exc
 
     initialized_mpi = False
     if not MPI.Is_initialized():
