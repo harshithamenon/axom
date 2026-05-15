@@ -226,7 +226,7 @@ if(NANOBIND_FOUND)
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
                          "${CMAKE_INSTALL_PREFIX}/bin/convert_sidre_protocol.py" COPYONLY)
 
-    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+    if(AXOM_ENABLE_MPI AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
 
         set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
 

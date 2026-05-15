@@ -282,7 +282,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("py-nanobind@2.7.0")
         depends_on("py-pytest")
         depends_on("py-numpy")
-        depends_on("py-mpi4py")
+        depends_on("py-mpi4py", when="+mpi")
         depends_on("conduit+python")
 
     # Devtools
@@ -345,9 +345,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("~umpire", when="+rocm")
 
     conflicts("^blt@:0.3.6", when="+rocm")
-
-    # python interface requires mpi
-    conflicts("~mpi", when="+python")
 
     def flag_handler(self, name, flags):
         if self.spec.satisfies("%cce") and name == "fflags":
