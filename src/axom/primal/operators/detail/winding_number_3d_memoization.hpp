@@ -282,7 +282,7 @@ public:
     // Otherwise, pick a direction that is *mostly* in the direction of the average normal
     else
     {
-      m_castDirection = (m_normal.unitVector() + 0.1 * random_unit).unitVector();
+      m_castDirection = (m_normal.unitVector() + 0.01 * random_unit).unitVector();
     }
   }
 
