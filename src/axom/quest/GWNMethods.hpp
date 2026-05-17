@@ -134,7 +134,7 @@ void generate_gwn_query_mesh(mfem::DataCollection& dc,
  * \tparam ExecSpace The execution space for the algorithm.
  * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
  *
- * \brief Preprocesses NURBSCurve geoemtry for GWN evaluation, 
+ * \brief Preprocesses NURBSCurve geometry for GWN evaluation, 
  *         and performs the calculation on the DOFs of an input MFEM mesh.
  * 
  * Possible evaluation modes are
@@ -554,7 +554,7 @@ private:
  * \tparam ExecSpace The execution space for the algorithm.
  * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
  *
- * \brief Preprocesses NURBSPatch geoemtry for GWN evaluation, 
+ * \brief Preprocesses NURBSPatch geometry for GWN evaluation, 
  *         and performs the calculation on the DOFs of an input MFEM mesh.
  * 
  * Possible evaluation modes are
