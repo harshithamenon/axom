@@ -179,7 +179,7 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
                                                         shaping::QFunctionCollection& inoutQFuncs,
-                                                        int sampleRes[3],
+                                                        axom::ArrayView<int> sampleRes,
                                                         int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
@@ -293,7 +293,7 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
                                                         shaping::QFunctionCollection&,
-                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
+                                                        axom::ArrayView<int> AXOM_UNUSED_PARAM(sampleRes),
                                                         int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {

@@ -42,8 +42,10 @@ private:
   std::unique_ptr<mfem::IntegrationRule> m_ir;
 };
 
+}  // namespace
+
 bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
-                                           const int sampleResolution[3],
+                                           axom::ArrayView<int> sampleResolution,
                                            int quadratureType)
 {
   if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
@@ -51,18 +53,23 @@ bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
     return false;
   }
 
-  switch(mesh.GetTypicalElementGeometry())
-  {
-  case mfem::Geometry::SQUARE:
-    return sampleResolution[0] != sampleResolution[1];
-  case mfem::Geometry::CUBE:
-    return sampleResolution[0] != sampleResolution[1] || sampleResolution[0] != sampleResolution[2];
-  default:
-    return false;
-  }
-}
+  const auto dim = mesh.Dimension();
+  SLIC_ERROR_IF(sampleResolution.size() != static_cast<axom::IndexType>(dim), "Sample resolution dimension does not match mesh dimension");
 
-}  // namespace
+  if(mesh.GetNE() > 0)
+  {
+    switch(mesh.GetTypicalElementGeometry())
+    {
+    case mfem::Geometry::SQUARE:
+      return sampleResolution[0] != sampleResolution[1];
+    case mfem::Geometry::CUBE:
+      return sampleResolution[0] != sampleResolution[1] || sampleResolution[0] != sampleResolution[2];
+    default:
+      return false;
+    }
+  }
+  return mesh.Dimension();
+}
 
 // Utility function to either return a gf from the dc, or to allocate it through the dc
 mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
@@ -192,11 +199,13 @@ mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRe
   return new mfem::QuadratureSpace(mesh, sampleOrder);
 }
 
-mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes[3], int quadratureType)
+mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, axom::ArrayView<int> sampleRes, int quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
   const int dim = mesh->Dimension();
+
+  SLIC_ERROR_IF(sampleRes.size() != static_cast<axom::IndexType>(dim), "Sample resolution dimension does not match mesh dimension");
 
   if(NE < 1)
   {
@@ -255,7 +264,7 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes
 /// Generates a quadrature function corresponding to the mesh "positions" field
 void generatePositionsQFunction(mfem::Mesh* mesh,
                                 QFunctionCollection& inoutQFuncs,
-                                int sampleResolution[3],
+                                axom::ArrayView<int> sampleResolution,
                                 int quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
@@ -272,6 +281,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   mfem::QuadratureSpace* sp = nullptr;
   if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
   {
+    SLIC_ERROR_IF(sampleResolution.empty(), "Invalid sampleResolution.");
     sp = makeDefaultQuadratureSpace(mesh, sampleResolution[0]);
   }
   else

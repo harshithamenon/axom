@@ -201,7 +201,9 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
  *
  * \param mesh The mesh
  * \param inoutQFuncs A collection of quadrature functions where the new "position" function will be added.
- * \param sampleResolution The sample resolution in each logical dimension.
+ * \param sampleResolution The sample resolution in each logical dimension. The size of the view should be
+ *                         1 for Invalid \a quadratureType and be equal to the mesh dimension for other
+ *                         \a quadratureType values.
  * \param quadratureType An int corresponding to mfem::Quadrature1D enum values. If
  *                       Invalid is used then the default quadrature is constructed.
  *                       Otherwise, custom quadrature is constructed using the supplied
@@ -210,7 +212,7 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
  */
 void generatePositionsQFunction(mfem::Mesh* mesh,
                                 QFunctionCollection& inoutQFuncs,
-                                int sampleResolution[3],
+                                axom::ArrayView<int> sampleResolution,
                                 int quadratureType);
 
 /** 
@@ -241,6 +243,23 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     const std::string& name);
 
 /*!
+ * \brief Determines whether the quadrature is anisotropic.
+ *
+ * \param The MFEM mesh used being sampled onto.
+ * \param sampleResolution The sample resolution for each dimension. If \a quadratureType
+ *                         is Invalid, there must be one value, which will be used for each
+ *                         dimension. For other \a quadratureType values, there must be
+ *                         one value per mesh dimension.
+ * \param quadratureType An int containing an mfem::Quadrature1D enum value that selects
+ *                       the quadrature type.
+ *
+ * \return True if the specified quadrature is anisotropic, false otherwise.
+ */
+bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
+                                           axom::ArrayView<int> sampleResolution,
+                                           int quadratureType);
+
+/*!
   * \brief Samples the inout field over the indexed geometry, possibly using a
   * callback function to project the input points (from the computational mesh)
   * to query points on the spatial index
@@ -254,7 +273,9 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   * \param [in] dc The data collection containing the mesh and associated query points
   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
   * inout samples
-  * \param [in] sampleRes The sampling resolution in each logical direction.
+  * \param [in] sampleRes The sampling resolution in each logical direction. For Invalid quadratureType,
+  *                       there must be 1 value, which will be used for each quadrature dimension. For
+  *                       other quadrature types, there must be 1 value per mesh dimension.
   * For custom quadrature families, these values specify the per-direction
   * sample counts directly, which in turn determine the quadrature rule used
   * in each logical direction.
@@ -270,7 +291,7 @@ template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string shapeName,
                       mfem::DataCollection* dc,
                       shaping::QFunctionCollection& inoutQFuncs,
-                      int sampleRes[3],
+                      axom::ArrayView<int> sampleRes,
                       int quadratureType,
                       InsideFunc&& checkInside,
                       PointProjector<FromDim, ToDim> projector = {})

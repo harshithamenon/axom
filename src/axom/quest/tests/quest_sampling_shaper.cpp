@@ -2345,8 +2345,8 @@ piece = line(end=start)
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());
 
-  int sampleRes[3] = {3, 5, 1};
-  this->m_shaper->setSamplingResolution(sampleRes);
+  int sampleRes[3] = {3, 5};
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 2});
   this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
   this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2392,14 +2392,14 @@ piece = line(end=start)
                                      rect_material,
                                      contour_file.getPath()));
 
-  int sampleRes[3] = {3, 5, 1};
+  int sampleRes[3] = {3, 5};
 
   for(const auto& quadrature : supported_quadrature_types)
   {
     this->validateShapeFile(shape_file.getPath());
     this->initializeShaping(shape_file.getPath());
 
-    this->m_shaper->setSamplingResolution(sampleRes);
+    this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 2});
     this->m_shaper->setQuadratureType(quadrature.second);
     this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2479,7 +2479,7 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   int sampleRes[3] = {3, 5, 2};
-  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 3});
   this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
   this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2527,7 +2527,7 @@ shapes:
   this->initializeShaping(shape_file.getPath(), initialGridFunctions);
 
   int sampleRes[3] = {3, 4, 5};
-  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 3});
   this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::OpenUniform));
   this->m_shaper->setVolumeFractionOrder(4);
 
@@ -2553,11 +2553,11 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   });
   nodes->ProjectCoefficient(warp);
 
-  int sampleRes[3] = {5, 3, 1};
+  int sampleRes[3] = {5, 3};
   quest::shaping::QFunctionCollection qfuncs;
   quest::shaping::generatePositionsQFunction(&mesh,
                                              qfuncs,
-                                             sampleRes,
+                                             axom::ArrayView<int>{sampleRes, 2},
                                              static_cast<int>(mfem::Quadrature1D::OpenUniform));
 
   auto* positions = qfuncs.Get("positions");

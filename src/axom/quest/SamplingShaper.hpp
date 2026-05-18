@@ -135,7 +135,14 @@ public:
                  const klee::ShapeSet& shapeSet,
                  sidre::MFEMSidreDataCollection* dc)
     : Shaper(execPolicy, allocatorId, shapeSet, dc)
-  { }
+  {
+    // Initialize the default number of samples based on the mesh dimension.
+    const int dim = getMeshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(5);
+    }
+  }
 
   ~SamplingShaper()
   {
@@ -200,10 +207,13 @@ public:
    */
   void setSamplingResolution(int sampleRes)
   {
-    SLIC_ASSERT(sampleRes > 0);
-    m_sampleResolution[0] = sampleRes;
-    m_sampleResolution[1] = sampleRes;
-    m_sampleResolution[2] = sampleRes;
+    SLIC_ERROR_IF(sampleRes < 1, "Invalid sample resolution");
+    m_samplingResolution.clear();
+    const auto dim = getMeshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(sampleRes);
+    }
   }
 
   /*!
@@ -215,17 +225,20 @@ public:
    * which in turn determine the quadrature rule used in each logical
    * direction.
    *
-   * \param [in] sampleRes Array containing the sample count per logical
-   *                       direction.
+   * \param [in] sampleRes ArrayView containing the sample count per logical
+   *                       direction. The size needs to match the number of
+   *                       mesh dimensions.
    */
-  void setSamplingResolution(int sampleRes[3])
+  void setSamplingResolution(axom::ArrayView<int> sampleRes)
   {
-    SLIC_ASSERT(sampleRes[0] > 0);
-    SLIC_ASSERT(sampleRes[1] > 0);
-    SLIC_ASSERT(sampleRes[2] > 0);
-    m_sampleResolution[0] = sampleRes[0];
-    m_sampleResolution[1] = sampleRes[1];
-    m_sampleResolution[2] = sampleRes[2];
+    const auto dim = getMeshDimension();
+    SLIC_ERROR_IF(static_cast<axom::IndexType>(dim) != sampleRes.size(), "Number of sample resolutions does not match mesh dimension.");
+    m_samplingResolution.clear();
+    for(int d = 0; d < dim; d++)
+    {
+      SLIC_ERROR_IF(sampleRes[d] < 1, "Invalid sample resolution");
+      m_samplingResolution.push_back(sampleRes[d]);
+    }
   }
 
   // Deprecated backward compatibility method
@@ -607,7 +620,7 @@ public:
     {
       shaping::generatePositionsQFunction(mesh,
                                           m_inoutShapeQFuncs,
-                                          m_sampleResolution,
+                                          m_samplingResolution.view(),
                                           m_quadratureType);
     }
     auto* positionsQSpace = m_inoutShapeQFuncs.Get("positions")->GetSpace();
@@ -631,7 +644,7 @@ public:
       auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
       const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
 
-      if(usesAnisotropicCustomTensorQuadrature(*mesh))
+      if(shaping::usesAnisotropicCustomTensorQuadrature(*mesh, m_samplingResolution.view(), m_quadratureType))
       {
         // Avoid MFEM's tensor quadrature interpolation path only for
         // anisotropic custom quad/hex rules. MFEM infers a single q1d from
@@ -731,12 +744,18 @@ public:
   }
 
 private:
+  /// Get the mesh dimension.
+  int getMeshDimension() const
+  {
+    return m_dc->GetMesh()->Dimension();
+  }
+
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename SamplerType>
   void runShapeQueryImplSampler(SamplerType* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
-    const int meshDim = m_dc->GetMesh()->Dimension();
+    const int meshDim = getMeshDimension();
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
@@ -747,7 +766,7 @@ private:
         {
           sampler->template sampleInOutField<2, 2>(m_dc,
                                                    m_inoutShapeQFuncs,
-                                                   m_sampleResolution,
+                                                   m_samplingResolution.view(),
                                                    m_quadratureType,
                                                    m_projector22);
         }
@@ -755,7 +774,7 @@ private:
         {
           sampler->template sampleInOutField<3, 2>(m_dc,
                                                    m_inoutShapeQFuncs,
-                                                   m_sampleResolution,
+                                                   m_samplingResolution.view(),
                                                    m_quadratureType,
                                                    m_projector32);
         }
@@ -765,7 +784,7 @@ private:
         {
           sampler->template sampleInOutField<2, 3>(m_dc,
                                                    m_inoutShapeQFuncs,
-                                                   m_sampleResolution,
+                                                   m_samplingResolution.view(),
                                                    m_quadratureType,
                                                    m_projector23);
         }
@@ -773,7 +792,7 @@ private:
         {
           sampler->template sampleInOutField<3, 3>(m_dc,
                                                    m_inoutShapeQFuncs,
-                                                   m_sampleResolution,
+                                                   m_samplingResolution.view(),
                                                    m_quadratureType,
                                                    m_projector33);
         }
@@ -827,7 +846,7 @@ private:
   void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
-    const int meshDim = m_dc->GetMesh()->Dimension();
+    const int meshDim = getMeshDimension();
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
@@ -841,7 +860,7 @@ private:
         {
           sampler->template sampleInOutField<2, 3>(m_dc,
                                                    m_inoutShapeQFuncs,
-                                                   m_sampleResolution,
+                                                   m_samplingResolution.view(),
                                                    m_quadratureType,
                                                    m_projector23);
         }
@@ -849,7 +868,7 @@ private:
         {
           sampler->template sampleInOutField<3, 3>(m_dc,
                                                    m_inoutShapeQFuncs,
-                                                   m_sampleResolution,
+                                                   m_samplingResolution.view(),
                                                    m_quadratureType,
                                                    m_projector33);
         }
@@ -886,14 +905,13 @@ private:
     mfem::Mesh* mesh = m_dc->GetMesh();
     const int dim = mesh->Dimension();
     const int NE = mesh->GetNE();
-    const auto geom = mesh->GetTypicalElementGeometry();
 
-    auto samples_per_dim = [=](int sampleRes[3], mfem::Geometry::Type geom) -> std::string {
-      switch(geom)
+    auto samples_per_dim = [=](axom::ArrayView<int> sampleRes) -> std::string {
+      switch(sampleRes.size())
       {
-      case mfem::Geometry::SQUARE:
+      case 2:
         return axom::fmt::format(" ({} * {})", sampleRes[0], sampleRes[1]);
-      case mfem::Geometry::CUBE:
+      case 3:
         return axom::fmt::format(" ({} * {} * {})", sampleRes[0], sampleRes[1], sampleRes[2]);
       default:
         return std::string();
@@ -906,7 +924,7 @@ private:
                                      "In computeVolumeFractions(): num samples per element {}{} | "
                                      "sample polynomial order {} | total samples {:L}",
                                      sampleNQ,
-                                     samples_per_dim(m_sampleResolution, geom),
+                                     samples_per_dim(m_samplingResolution.view()),
                                      sampleOrder,
                                      sampleSZ));
 
@@ -942,7 +960,7 @@ private:
       mfem::ConstantCoefficient one_coef(1.0);
       mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
 
-      if(usesAnisotropicCustomTensorQuadrature(*fes->GetMesh()))
+      if(shaping::usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), m_samplingResolution.view(), m_quadratureType))
       {
         mfem::DenseMatrix elemMat;
         mass_mat->HostWrite();
@@ -1098,34 +1116,15 @@ private:
     vf->HostReadWrite();
   }
 
-  bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
-  {
-    if(m_quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
-    {
-      return false;
-    }
-
-    switch(mesh.GetTypicalElementGeometry())
-    {
-    case mfem::Geometry::SQUARE:
-      return m_sampleResolution[0] != m_sampleResolution[1];
-    case mfem::Geometry::CUBE:
-      return m_sampleResolution[0] != m_sampleResolution[1] ||
-        m_sampleResolution[0] != m_sampleResolution[2];
-    default:
-      return false;
-    }
-  }
-
   void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
                                  mfem::QuadratureFunction& inout,
                                  const mfem::IntegrationRule& sampleIR,
-                                 mfem::Vector& b) const
+                                 mfem::Vector& b)
   {
     mfem::QuadratureFunctionCoefficient qfc(inout);
     mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
 
-    if(usesAnisotropicCustomTensorQuadrature(*fes.GetMesh()))
+    if(shaping::usesAnisotropicCustomTensorQuadrature(*fes.GetMesh(), m_samplingResolution.view(), m_quadratureType))
     {
       mfem::Vector elemVec;
       mfem::Array<int> elemVDofs;
@@ -1166,7 +1165,7 @@ private:
 
   shaping::VolFracSampling m_vfSampling {shaping::VolFracSampling::SAMPLE_AT_QPTS};
   int m_quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
-  int m_sampleResolution[3] = {5, 5, 5};
+  axom::Array<int> m_samplingResolution {};
   int m_volfracOrder {2};
   SamplingMethod m_samplingMethod {SamplingMethod::InOut};
 };
