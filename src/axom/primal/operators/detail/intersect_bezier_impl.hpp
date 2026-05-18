@@ -539,6 +539,49 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
   return true;
 }
 
+template <typename T>
+bool intersect_nurbscurves(const NURBSCurve<T, 2>& n1,
+			   const NURBSCurve<T, 2>& n2,
+			   axom::Array<T>& p1,
+			   axom::Array<T>& p2,
+			   double tol)
+{
+  // Decompose both NURBS curves into Bezier segments
+  const auto beziers1 = n1.extractBezier();
+  const auto beziers2 = n2.extractBezier();
+
+  const axom::Array<T> knots1 = n1.getKnots().getUniqueKnots();
+  const axom::Array<T> knots2 = n2.getKnots().getUniqueKnots();
+
+  bool foundIntersection = false;
+
+  // Loop over all Bezier segment pairs (is there a better way?)
+  for (int i = 0; i < beziers1.size(); ++i)
+    {
+      for (int j = 0; j < beziers2.size(); ++j)
+	{
+	  axom::Array<T> u_local, v_local;
+
+	  // Intersect Bezier segment i of n1 with Bezier segment j of n2
+	  intersect(beziers1[i], beziers2[j], u_local, v_local, tol);
+
+	  foundIntersection |= !u_local.empty();
+
+	  // Map local Bezier parameters back to full NURBS parameters
+	  for (int k = 0; k < u_local.size(); ++k)
+	    {
+	      T u_full = axom::utilities::lerp(knots1[i], knots1[i + 1], u_local[k]);
+	      T v_full = axom::utilities::lerp(knots2[j], knots2[j + 1], v_local[k]);
+
+	      p1.push_back(u_full);
+	      p2.push_back(v_full);
+	    }
+	}
+    }
+
+  return foundIntersection;
+}
+
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom

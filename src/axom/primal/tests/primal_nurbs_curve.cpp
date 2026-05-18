@@ -14,6 +14,7 @@
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/NURBSCurve.hpp"
+#include "axom/primal/operators/intersect.hpp"
 #include <math.h>
 
 namespace primal = axom::primal;
@@ -1198,6 +1199,53 @@ TEST(primal_nurbscurve, linear_segment_constructor)
       EXPECT_NEAR(p[i], start[i], 1e-13);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_intersections)
+{
+  // Define two nurbs curves in 2D intersecting at one point.
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+  using Point2D = primal::Point<CoordType, DIM>;
+
+  constexpr int max_degree = 3;
+
+  Point2D data1_2d[max_degree + 1] = {Point2D {0.6, 1.2},
+				      Point2D {1.3, 1.6},
+				      Point2D {2.9, 2.4},
+				      Point2D {3.2, 3.5}};
+
+  Point2D data2_2d[max_degree + 1] = {Point2D {0.5, 3.4},
+				      Point2D {1.2, 2.3},
+				      Point2D {2.8, 1.5},
+				      Point2D {3.1, 1.1}};
+
+  constexpr double weights[4] = {1.0, 2.0, 3.0, 4.0};
+
+  constexpr int degree = 3;
+  constexpr int npts = 4;
+
+  NURBSCurveType curve1(data1_2d, weights, npts, degree);
+  NURBSCurveType curve2(data2_2d, weights, npts, degree);
+
+  Point2D intersection1, intersection2;
+
+  axom::Array<CoordType> p1, p2;
+  const bool found = intersect(curve1, curve2, p1, p2);
+
+  const int num_intersections = p1.size();
+  EXPECT_TRUE(found && num_intersections == 1 && num_intersections == p2.size());
+
+  for (int j=0; j<num_intersections; ++j)
+    {
+      intersection1 = curve1.evaluate(p1[j]);
+      intersection2 = curve2.evaluate(p2[j]);
+
+      for (int i=0; i<DIM; ++i)
+	EXPECT_NEAR(intersection1[i], intersection2[i], 1e-8);
+    }
 }
 
 int main(int argc, char* argv[])
