@@ -1213,14 +1213,14 @@ TEST(primal_nurbscurve, nurbscurve_intersections)
   constexpr int max_degree = 3;
 
   Point2D data1_2d[max_degree + 1] = {Point2D {0.6, 1.2},
-				      Point2D {1.3, 1.6},
-				      Point2D {2.9, 2.4},
-				      Point2D {3.2, 3.5}};
+                                      Point2D {1.3, 1.6},
+                                      Point2D {2.9, 2.4},
+                                      Point2D {3.2, 3.5}};
 
   Point2D data2_2d[max_degree + 1] = {Point2D {0.5, 3.4},
-				      Point2D {1.2, 2.3},
-				      Point2D {2.8, 1.5},
-				      Point2D {3.1, 1.1}};
+                                      Point2D {1.2, 2.3},
+                                      Point2D {2.8, 1.5},
+                                      Point2D {3.1, 1.1}};
 
   constexpr double weights[4] = {1.0, 2.0, 3.0, 4.0};
 
@@ -1238,14 +1238,13 @@ TEST(primal_nurbscurve, nurbscurve_intersections)
   const int num_intersections = p1.size();
   EXPECT_TRUE(found && num_intersections == 1 && num_intersections == p2.size());
 
-  for (int j=0; j<num_intersections; ++j)
-    {
-      intersection1 = curve1.evaluate(p1[j]);
-      intersection2 = curve2.evaluate(p2[j]);
+  for(int j = 0; j < num_intersections; ++j)
+  {
+    intersection1 = curve1.evaluate(p1[j]);
+    intersection2 = curve2.evaluate(p2[j]);
 
-      for (int i=0; i<DIM; ++i)
-	EXPECT_NEAR(intersection1[i], intersection2[i], 1e-8);
-    }
+    for(int i = 0; i < DIM; ++i) EXPECT_NEAR(intersection1[i], intersection2[i], 1e-8);
+  }
 }
 
 int main(int argc, char* argv[])
