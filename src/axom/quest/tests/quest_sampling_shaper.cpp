@@ -2346,7 +2346,7 @@ piece = line(end=start)
   this->initializeShaping(shape_file.getPath());
 
   int sampleRes[3] = {3, 5};
-  this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 2});
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 2});
   this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
   this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2399,7 +2399,7 @@ piece = line(end=start)
     this->validateShapeFile(shape_file.getPath());
     this->initializeShaping(shape_file.getPath());
 
-    this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 2});
+    this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 2});
     this->m_shaper->setQuadratureType(quadrature.second);
     this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2479,7 +2479,7 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   int sampleRes[3] = {3, 5, 2};
-  this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 3});
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
   this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
   this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2527,7 +2527,7 @@ shapes:
   this->initializeShaping(shape_file.getPath(), initialGridFunctions);
 
   int sampleRes[3] = {3, 4, 5};
-  this->m_shaper->setSamplingResolution(axom::ArrayView<int>{sampleRes, 3});
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
   this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::OpenUniform));
   this->m_shaper->setVolumeFractionOrder(4);
 
@@ -2557,7 +2557,7 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   quest::shaping::QFunctionCollection qfuncs;
   quest::shaping::generatePositionsQFunction(&mesh,
                                              qfuncs,
-                                             axom::ArrayView<int>{sampleRes, 2},
+                                             axom::ArrayView<int> {sampleRes, 2},
                                              static_cast<int>(mfem::Quadrature1D::OpenUniform));
 
   auto* positions = qfuncs.Get("positions");

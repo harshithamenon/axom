@@ -232,7 +232,8 @@ public:
   void setSamplingResolution(axom::ArrayView<int> sampleRes)
   {
     const auto dim = getMeshDimension();
-    SLIC_ERROR_IF(static_cast<axom::IndexType>(dim) != sampleRes.size(), "Number of sample resolutions does not match mesh dimension.");
+    SLIC_ERROR_IF(static_cast<axom::IndexType>(dim) != sampleRes.size(),
+                  "Number of sample resolutions does not match mesh dimension.");
     m_samplingResolution.clear();
     for(int d = 0; d < dim; d++)
     {
@@ -644,7 +645,9 @@ public:
       auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
       const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
 
-      if(shaping::usesAnisotropicCustomTensorQuadrature(*mesh, m_samplingResolution.view(), m_quadratureType))
+      if(shaping::usesAnisotropicCustomTensorQuadrature(*mesh,
+                                                        m_samplingResolution.view(),
+                                                        m_quadratureType))
       {
         // Avoid MFEM's tensor quadrature interpolation path only for
         // anisotropic custom quad/hex rules. MFEM infers a single q1d from
@@ -745,10 +748,7 @@ public:
 
 private:
   /// Get the mesh dimension.
-  int getMeshDimension() const
-  {
-    return m_dc->GetMesh()->Dimension();
-  }
+  int getMeshDimension() const { return m_dc->GetMesh()->Dimension(); }
 
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename SamplerType>
@@ -960,7 +960,9 @@ private:
       mfem::ConstantCoefficient one_coef(1.0);
       mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
 
-      if(shaping::usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), m_samplingResolution.view(), m_quadratureType))
+      if(shaping::usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(),
+                                                        m_samplingResolution.view(),
+                                                        m_quadratureType))
       {
         mfem::DenseMatrix elemMat;
         mass_mat->HostWrite();
@@ -1124,7 +1126,9 @@ private:
     mfem::QuadratureFunctionCoefficient qfc(inout);
     mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
 
-    if(shaping::usesAnisotropicCustomTensorQuadrature(*fes.GetMesh(), m_samplingResolution.view(), m_quadratureType))
+    if(shaping::usesAnisotropicCustomTensorQuadrature(*fes.GetMesh(),
+                                                      m_samplingResolution.view(),
+                                                      m_quadratureType))
     {
       mfem::Vector elemVec;
       mfem::Array<int> elemVDofs;

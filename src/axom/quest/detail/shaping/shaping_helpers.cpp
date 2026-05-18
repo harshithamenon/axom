@@ -54,7 +54,8 @@ bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
   }
 
   const auto dim = mesh.Dimension();
-  SLIC_ERROR_IF(sampleResolution.size() != static_cast<axom::IndexType>(dim), "Sample resolution dimension does not match mesh dimension");
+  SLIC_ERROR_IF(sampleResolution.size() != static_cast<axom::IndexType>(dim),
+                "Sample resolution dimension does not match mesh dimension");
 
   if(mesh.GetNE() > 0)
   {
@@ -199,13 +200,16 @@ mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRe
   return new mfem::QuadratureSpace(mesh, sampleOrder);
 }
 
-mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, axom::ArrayView<int> sampleRes, int quadratureType)
+mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh,
+                                                 axom::ArrayView<int> sampleRes,
+                                                 int quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
   const int dim = mesh->Dimension();
 
-  SLIC_ERROR_IF(sampleRes.size() != static_cast<axom::IndexType>(dim), "Sample resolution dimension does not match mesh dimension");
+  SLIC_ERROR_IF(sampleRes.size() != static_cast<axom::IndexType>(dim),
+                "Sample resolution dimension does not match mesh dimension");
 
   if(NE < 1)
   {
