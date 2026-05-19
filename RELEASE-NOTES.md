@@ -46,6 +46,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 
 ### Fixed
+- Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
