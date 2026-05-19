@@ -1161,7 +1161,7 @@ TEST(primal_nurbscurve, circular_arc_constructor)
 //------------------------------------------------------------------------------
 TEST(primal_nurbscurve, linear_segment_constructor)
 {
-  // Define a nurbs curve that represents a circle
+  // Define a nurbs curve that represents a line segment
   const int DIM = 2;
   using CoordType = double;
   using PointType = primal::Point<CoordType, DIM>;
@@ -1204,7 +1204,6 @@ TEST(primal_nurbscurve, linear_segment_constructor)
 //------------------------------------------------------------------------------
 TEST(primal_nurbscurve, nurbscurve_intersections)
 {
-  // Define two nurbs curves in 2D intersecting at one point.
   constexpr int DIM = 2;
   using CoordType = double;
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
@@ -1212,15 +1211,16 @@ TEST(primal_nurbscurve, nurbscurve_intersections)
 
   constexpr int max_degree = 3;
 
-  Point2D data1_2d[max_degree + 1] = {Point2D {0.6, 1.2},
-                                      Point2D {1.3, 1.6},
-                                      Point2D {2.9, 2.4},
-                                      Point2D {3.2, 3.5}};
+  // Define two nurbs curves in 2D intersecting at one point.
+  const Point2D data1_2d[max_degree + 1] = {Point2D {0.6, 1.2},
+                                            Point2D {1.3, 1.6},
+                                            Point2D {2.9, 2.4},
+                                            Point2D {3.2, 3.5}};
 
-  Point2D data2_2d[max_degree + 1] = {Point2D {0.5, 3.4},
-                                      Point2D {1.2, 2.3},
-                                      Point2D {2.8, 1.5},
-                                      Point2D {3.1, 1.1}};
+  const Point2D data2_2d[max_degree + 1] = {Point2D {0.5, 3.4},
+                                            Point2D {1.2, 2.3},
+                                            Point2D {2.8, 1.5},
+                                            Point2D {3.1, 1.1}};
 
   constexpr double weights[4] = {1.0, 2.0, 3.0, 4.0};
 
@@ -1232,9 +1232,8 @@ TEST(primal_nurbscurve, nurbscurve_intersections)
 
   Point2D intersection1, intersection2;
 
-  axom::Array<CoordType> p1, p2;
+  axom::Array<CoordType> p1, p2, q1, q2;
   const bool found = intersect(curve1, curve2, p1, p2);
-
   const int num_intersections = p1.size();
   EXPECT_TRUE(found && num_intersections == 1 && num_intersections == p2.size());
 
@@ -1245,6 +1244,32 @@ TEST(primal_nurbscurve, nurbscurve_intersections)
 
     for(int i = 0; i < DIM; ++i) EXPECT_NEAR(intersection1[i], intersection2[i], 1e-8);
   }
+
+  // Test two curves that do not intersect.
+  const Point2D data3_2d[max_degree + 1] = {Point2D {0.5, -3.4},
+                                            Point2D {1.2, -2.3},
+                                            Point2D {2.8, -1.5},
+                                            Point2D {3.1, -1.1}};
+
+  NURBSCurveType curve3(data3_2d, weights, npts, degree);
+  const bool not_found = !intersect(curve2, curve3, q1, q2);
+  EXPECT_TRUE(not_found && q1.size() == 0 && q2.size() == 0);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_circle_intersections)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  // Test two circles that intersect at two points.
+  const auto circle1 = NURBSCurveType::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 0.0, 0.0, 1.0);
+  const auto circle2 = NURBSCurveType::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 1.0, 0.0, 1.0);
+
+  axom::Array<CoordType> p1, p2, q1, q2;
+  const bool found = intersect(circle1, circle2, p1, p2);
+  EXPECT_TRUE(found && p1.size() == 2 && p2.size() == 2);
 }
 
 int main(int argc, char* argv[])

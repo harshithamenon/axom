@@ -553,6 +553,10 @@ bool intersect_nurbscurves(const NURBSCurve<T, 2> &n1,
   const axom::Array<T> knots1 = n1.getKnots().getUniqueKnots();
   const axom::Array<T> knots2 = n2.getKnots().getUniqueKnots();
 
+  const double sq_tol = tol * tol;
+  const int ord1 = beziers1[0].getOrder();
+  const int ord2 = beziers2[0].getOrder();
+
   bool foundIntersection = false;
 
   // Loop over all Bezier segment pairs (is there a better way?)
@@ -563,13 +567,25 @@ bool intersect_nurbscurves(const NURBSCurve<T, 2> &n1,
       axom::Array<T> u_local, v_local;
 
       // Intersect Bezier segment i of n1 with Bezier segment j of n2
-      intersect(beziers1[i], beziers2[j], u_local, v_local, tol);
+      intersect_bezier_curves(beziers1[i],
+                              beziers2[j],
+                              u_local,
+                              v_local,
+                              sq_tol,
+                              ord1,
+                              ord2,
+                              0.0,
+                              1.0,
+                              0.0,
+                              1.0);
 
       foundIntersection |= !u_local.empty();
 
       // Map local Bezier parameters back to full NURBS parameters
       for(int k = 0; k < u_local.size(); ++k)
       {
+        // Knot intervals are simply given by indices i and j, due to the use of
+        // getUniqueKnots() above to set knots1 and knots2.
         T u_full = axom::utilities::lerp(knots1[i], knots1[i + 1], u_local[k]);
         T v_full = axom::utilities::lerp(knots2[j], knots2[j + 1], v_local[k]);
 

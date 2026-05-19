@@ -1466,7 +1466,11 @@ bool intersect(const Line<T, 3>& line,
  * \param [in] tol Tolerance used in the segment pair intersection test.
  * \return true iff n1 intersects with n2, otherwise, false.
  * \note The number of new entries added to p1 and p2 is the number of
- *       intersections.
+ *       intersections, and corresponding entries in p1 and p2 are for the same
+ *       intersection. This function checks for intersections of Bezier segments
+ *       of the two NURBS curves. It does not perform simple bounding-box checks
+ *       to quickly determine no intersection, which could be done before
+ *       calling this function for better efficiency in some applications.
  */
 template <typename T>
 bool intersect(const NURBSCurve<T, 2>& n1,
