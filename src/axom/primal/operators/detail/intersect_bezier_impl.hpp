@@ -49,10 +49,12 @@ namespace detail
  * \param [in] t_offset The offset in parameter space for \a c2
  * \param [in] t_scale The scale in parameter space for \a c2
  *
- * Bezier curves can only intersect when their bounding boxes intersect.
- * The base case of the recursion is when we can approximate the curves as
- * line segments, where we directly find their intersections. Otherwise,
- * check for intersections recursively after bisecting one of the curves.
+ * Bezier curves can only intersect when their bounding boxes intersect. Curves
+ * intersecting tangentially will not have an intersection found. Intersections
+ * at curve endpoints may also be ignored. The base case of the recursion is
+ * when we can approximate the curves as line segments, where we directly find
+ * their intersections. Otherwise, check for intersections recursively after
+ * bisecting one of the curves.
  *
  * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
  * are used to track the local curve parameters during subdivisions
@@ -187,7 +189,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
                              double c_scale);
 
 /*!
- * \brief Tests intersection of a line and a cirlce
+ * \brief Tests intersection of a line and a circle
  *
  * \param [in] a, b the endpoints of a segment which defines the line
  * \param [out] c1, c2, t1, t2 The parametrized curve values (c) and 
