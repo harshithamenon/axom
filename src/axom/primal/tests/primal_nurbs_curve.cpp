@@ -1334,6 +1334,7 @@ TEST(primal_nurbscurve, nurbscurve_self_intersections)
   NURBSCurveType curve1 = make_cubic_shape();
   NURBSCurveType curve2 = make_ellipse_curve();
 
+  // Note: This pair of NURBS curves has eight intersections at five unique intersection points
   axom::Array<CoordType> p1, p2;
   const bool found = intersect(curve1, curve2, p1, p2);
   EXPECT_TRUE(found && p1.size() == 8 && p2.size() == 8);
